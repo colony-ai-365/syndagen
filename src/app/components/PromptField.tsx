@@ -5,6 +5,10 @@ type PromptFieldProps = {
   value: string;
   onKeyChange: (val: string) => void;
   onValueChange: (val: string) => void;
+  variableSelections?: Record<string, number>;
+  setVariableSelections?: (sel: Record<string, number>) => void;
+  variableValues?: Record<string, string[]>;
+  setVariableValues?: (vals: Record<string, string[]>) => void;
 };
 
 export default function PromptField({
@@ -12,13 +16,17 @@ export default function PromptField({
   value,
   onKeyChange,
   onValueChange,
+  variableSelections,
+  setVariableSelections,
+  variableValues,
+  setVariableValues,
 }: PromptFieldProps) {
   // Detect dynamic variables in prompt
   const variableRegex = /{{\s*([\w.-]+)\s*}}/g;
   const [variables, setVariables] = useState<string[]>([]);
-  const [variableValues, setVariableValues] = useState<Record<string, string>>(
-    {}
-  );
+  // Use variableValues/setVariableValues from props if provided
+  // Selection index for each variable
+  const [selections, setSelections] = useState<Record<string, number>>({});
 
   useEffect(() => {
     const found = Array.from(
@@ -27,10 +35,16 @@ export default function PromptField({
     setVariables(found);
 
     // Remove values for variables no longer present
-    setVariableValues((prev) => {
-      const updated: Record<string, string> = {};
+    if (setVariableValues && variableValues) {
+      setVariableValues({
+        ...variableValues,
+        ...Object.fromEntries(found.map((v) => [v, variableValues[v] || [""]])),
+      });
+    }
+    setSelections((prev) => {
+      const updated: Record<string, number> = {};
       for (const v of found) {
-        updated[v] = prev[v] || "";
+        updated[v] = prev[v] ?? 0;
       }
       return updated;
     });
@@ -42,6 +56,18 @@ export default function PromptField({
     return value.replace(variableRegex, (match) => {
       return `<span style='color: orange; font-weight: bold;'>${match}</span>`;
     });
+  };
+
+  // Replace variables with selected values
+  const getInjectedPrompt = () => {
+    let result = value;
+    for (const v of variables) {
+      const vals = variableValues ? variableValues[v] || [""] : [""];
+      const idx = selections[v] ?? 0;
+      const selected = vals[idx] || "";
+      result = result.replace(new RegExp(`{{\s*${v}\s*}}`, "g"), selected);
+    }
+    return result;
   };
 
   // Refs for scroll sync
@@ -105,11 +131,11 @@ export default function PromptField({
         </div>
       </div>
 
-      {/* Dynamic variable inputs */}
+      {/* Dynamic variable inputs: list of values for each */}
       {variables.length > 0 && (
         <div className="mt-2">
           <label className="font-semibold text-base mb-1 block">
-            Dynamic Variables:
+            Dynamic Variables (enter comma-separated values):
           </label>
           <div className="flex flex-col gap-2">
             {variables.map((v) => (
@@ -117,16 +143,57 @@ export default function PromptField({
                 <span className="font-mono text-orange-600">{v}</span>
                 <input
                   type="text"
-                  value={variableValues[v] || ""}
-                  onChange={(e) =>
-                    setVariableValues((prev) => ({
-                      ...prev,
-                      [v]: e.target.value,
-                    }))
+                  value={
+                    variableValues ? variableValues[v]?.join(",") || "" : ""
                   }
+                  onChange={(e) => {
+                    // Do not trim or filter, allow spaces and commas
+                    const vals = e.target.value.split(",");
+                    if (setVariableValues && variableValues) {
+                      setVariableValues({ ...variableValues, [v]: vals });
+                    }
+                    // Always update selection to 0 if values change
+                    setSelections((prev) => ({ ...prev, [v]: 0 }));
+                    setVariableSelections &&
+                      setVariableSelections({ ...selections, [v]: 0 });
+                  }}
                   className="border px-2 py-1 rounded w-2/3"
-                  placeholder={`Value for ${v}`}
+                  placeholder={`Values for ${v} (comma separated)`}
                 />
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Dropdowns for selecting which value to inject */}
+      {variables.length > 0 && (
+        <div className="mt-2">
+          <label className="font-semibold text-base mb-1 block">
+            Select value for each variable:
+          </label>
+          <div className="flex flex-col gap-2">
+            {variables.map((v) => (
+              <div key={v} className="flex gap-2 items-center">
+                <span className="font-mono text-orange-600">{v}</span>
+                <select
+                  value={selections[v] ?? 0}
+                  onChange={(e) => {
+                    const idx = Number(e.target.value);
+                    setSelections((prev) => ({ ...prev, [v]: idx }));
+                    setVariableSelections &&
+                      setVariableSelections({ ...selections, [v]: idx });
+                  }}
+                  className="border px-2 py-1 rounded w-2/3"
+                >
+                  {(variableValues ? variableValues[v] || [""] : [""]).map(
+                    (val, idx) => (
+                      <option key={idx} value={idx}>
+                        {val}
+                      </option>
+                    )
+                  )}
+                </select>
               </div>
             ))}
           </div>

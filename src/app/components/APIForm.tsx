@@ -10,6 +10,14 @@ type APIFormProps = {
 };
 
 export default function APIForm({ setResult, setError }: APIFormProps) {
+  // For variable selection in PromptField
+  const [variableSelections, setVariableSelections] = useState<
+    Record<string, number>
+  >({});
+  const [variableValues, setVariableValues] = useState<
+    Record<string, string[]>
+  >({});
+  const [injectedPrompt, setInjectedPrompt] = useState<string>("");
   const [route, setRoute] = useState("");
   const [fields, setFields] = useState([
     { key: "", value: "", type: "string" },
@@ -59,17 +67,41 @@ export default function APIForm({ setResult, setError }: APIFormProps) {
     setFields((fields) => fields.filter((_, i) => i !== idx));
   };
 
+  // Helper to get injected prompt value from PromptField
+  const getInjectedPrompt = () => {
+    let prompt = fields[0].value;
+    // Detect variables
+    const variableRegex = /{{\s*([\w.-]+)\s*}}/g;
+    const found = Array.from(
+      new Set([...prompt.matchAll(variableRegex)].map((m) => m[1]))
+    );
+    let injected = prompt;
+    for (const v of found) {
+      const vals = variableValues[v] || [""];
+      const idx = variableSelections[v] ?? 0;
+      const selectedValue = vals[idx] || "";
+      injected = injected.replace(
+        new RegExp(`{{\\s*${v}\\s*}}`, "g"),
+        selectedValue
+      );
+    }
+    setInjectedPrompt(injected);
+    console.log(injected);
+    return injected;
+  };
+
   const buildBody = () => {
     const obj: Record<string, any> = {};
     fields.forEach(({ key, value, type }, idx) => {
       if (!key) return;
       let parsed: any = value;
-      // For the prompt field (idx === 0), check for valid JSON
+      // For the prompt field (idx === 0), use injected prompt value
       if (idx === 0) {
+        const injected = getInjectedPrompt();
         try {
-          parsed = JSON.parse(value);
+          parsed = JSON.parse(injected);
         } catch {
-          parsed = value;
+          parsed = injected;
         }
       } else {
         if (type === "boolean") {
@@ -191,6 +223,10 @@ export default function APIForm({ setResult, setError }: APIFormProps) {
             value={fields[0].value}
             onKeyChange={(val) => handleFieldChange(0, "key", val)}
             onValueChange={(val) => handleFieldChange(0, "value", val)}
+            variableSelections={variableSelections}
+            setVariableSelections={setVariableSelections}
+            variableValues={variableValues}
+            setVariableValues={setVariableValues}
           />
           <AdditionalFields
             fields={fields.slice(1)}

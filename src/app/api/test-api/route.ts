@@ -25,7 +25,7 @@ export async function POST(req: Request) {
       json = { raw: text };
     }
     let responseData = json;
-    console.log(json);
+    // console.log(json);
     if (field && typeof json === "object" && json !== null) {
       // Split by dot, but handle array indices like key2[2]
       const pathRegex = /([\w-]+)(\[(\d+)\])?/g;
@@ -61,13 +61,28 @@ export async function POST(req: Request) {
       }
       // If the field value is a JSON string, parse it
       if (typeof responseData === "string") {
-        try {
-          responseData = JSON.parse(responseData);
-        } catch {
-          return new Response(
-            JSON.stringify({ error: "Field value is not valid JSON." }),
-            { status: 400, headers: { "Content-Type": "application/json" } }
-          );
+        // Match the longest string wrapped by two curly braces
+        const match = responseData.match(/({[\s\S]*})/);
+        if (match && match[1]) {
+          try {
+            responseData = JSON.parse(match[1]);
+          } catch {
+            return new Response(
+              JSON.stringify({
+                error: "Matched field value is not valid JSON.",
+              }),
+              { status: 400, headers: { "Content-Type": "application/json" } }
+            );
+          }
+        } else {
+          try {
+            responseData = JSON.parse(responseData);
+          } catch {
+            return new Response(
+              JSON.stringify({ error: "Field value is not valid JSON." }),
+              { status: 400, headers: { "Content-Type": "application/json" } }
+            );
+          }
         }
       }
       // Schema validation
