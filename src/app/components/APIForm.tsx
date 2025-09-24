@@ -2,6 +2,7 @@ import { useState } from "react";
 import PromptField from "../components/PromptField";
 import AdditionalFields from "../components/AdditionalFields";
 import ResultDisplay from "../components/ResultDisplay";
+import SchemaField from "../components/SchemaField";
 
 type APIFormProps = {
   setResult: (val: string) => void;
@@ -15,6 +16,7 @@ export default function APIForm({ setResult, setError }: APIFormProps) {
   ]);
   const [method, setMethod] = useState("GET");
   const [field, setField] = useState("");
+  const [schemaInput, setSchemaInput] = useState(""); // comma-separated
   const [loading, setLoading] = useState(false);
 
   const handleFieldChange = (
@@ -63,14 +65,32 @@ export default function APIForm({ setResult, setError }: APIFormProps) {
     if (method !== "GET") {
       parsedBody = buildBody();
     }
+    // Parse schema input into array
+    let schema: string[] | undefined = undefined;
+    if (schemaInput.trim()) {
+      schema = schemaInput
+        .split(",")
+        .map((s) => s.trim())
+        .filter(Boolean);
+    }
     try {
       const res = await fetch("/api/test-api", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ route, body: parsedBody, method, field }),
+        body: JSON.stringify({
+          route,
+          body: parsedBody,
+          method,
+          field,
+          schema,
+        }),
       });
       const data = await res.json();
-      setResult(data.data);
+      if (res.ok) {
+        setResult(data.data);
+      } else {
+        setError(data.error || "Validation failed");
+      }
     } catch (err) {
       setError("Failed to call backend");
     }
@@ -86,13 +106,23 @@ export default function APIForm({ setResult, setError }: APIFormProps) {
       <select
         value={method}
         onChange={(e) => setMethod(e.target.value)}
-        className="border px-3 py-2 rounded"
+        className="border px-3 py-2 rounded bg-gray-900 text-white"
       >
-        <option value="GET">GET</option>
-        <option value="POST">POST</option>
-        <option value="PUT">PUT</option>
-        <option value="DELETE">DELETE</option>
-        <option value="PATCH">PATCH</option>
+        <option value="GET" className="bg-gray-900 text-white">
+          GET
+        </option>
+        <option value="POST" className="bg-gray-900 text-white">
+          POST
+        </option>
+        <option value="PUT" className="bg-gray-900 text-white">
+          PUT
+        </option>
+        <option value="DELETE" className="bg-gray-900 text-white">
+          DELETE
+        </option>
+        <option value="PATCH" className="bg-gray-900 text-white">
+          PATCH
+        </option>
       </select>
       <label className="font-medium">API Route (absolute or relative):</label>
       <input
@@ -111,6 +141,7 @@ export default function APIForm({ setResult, setError }: APIFormProps) {
         className="border px-3 py-2 rounded"
         placeholder="e.g. id"
       />
+      <SchemaField value={schemaInput} onChange={setSchemaInput} />
       {method !== "GET" && (
         <>
           <PromptField
