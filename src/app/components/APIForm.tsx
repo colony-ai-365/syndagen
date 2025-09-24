@@ -14,10 +14,31 @@ export default function APIForm({ setResult, setError }: APIFormProps) {
   const [fields, setFields] = useState([
     { key: "", value: "", type: "string" },
   ]);
+  const [headers, setHeaders] = useState([{ key: "", value: "" }]);
   const [method, setMethod] = useState("GET");
   const [field, setField] = useState("");
   const [schemaInput, setSchemaInput] = useState(""); // comma-separated
   const [loading, setLoading] = useState(false);
+  // Header field handlers
+  const handleHeaderChange = (
+    idx: number,
+    fieldType: "key" | "value" | "type",
+    val: string
+  ) => {
+    if (fieldType === "type") return; // ignore type for headers
+    setHeaders((headers) =>
+      headers.map((h, i) => (i === idx ? { ...h, [fieldType]: val } : h))
+    );
+  };
+
+  const handleAddHeader = () => {
+    setHeaders((headers) => [...headers, { key: "", value: "" }]);
+  };
+
+  const handleRemoveHeader = (idx: number) => {
+    if (idx === 0) return;
+    setHeaders((headers) => headers.filter((_, i) => i !== idx));
+  };
 
   const handleFieldChange = (
     idx: number,
@@ -43,7 +64,14 @@ export default function APIForm({ setResult, setError }: APIFormProps) {
     fields.forEach(({ key, value, type }, idx) => {
       if (!key) return;
       let parsed: any = value;
-      if (idx !== 0) {
+      // For the prompt field (idx === 0), check for valid JSON
+      if (idx === 0) {
+        try {
+          parsed = JSON.parse(value);
+        } catch {
+          parsed = value;
+        }
+      } else {
         if (type === "boolean") {
           parsed = value === "true";
         } else if (type === "number") {
@@ -73,6 +101,11 @@ export default function APIForm({ setResult, setError }: APIFormProps) {
         .map((s) => s.trim())
         .filter(Boolean);
     }
+    // Build headers object
+    const customHeaders: Record<string, string> = {};
+    headers.forEach(({ key, value }) => {
+      if (key) customHeaders[key] = value;
+    });
     try {
       const res = await fetch("/api/test-api", {
         method: "POST",
@@ -83,6 +116,7 @@ export default function APIForm({ setResult, setError }: APIFormProps) {
           method,
           field,
           schema,
+          headers: customHeaders,
         }),
       });
       const data = await res.json();
@@ -140,6 +174,14 @@ export default function APIForm({ setResult, setError }: APIFormProps) {
         onChange={(e) => setField(e.target.value)}
         className="border px-3 py-2 rounded"
         placeholder="e.g. id"
+      />
+      <label className="font-medium">Custom Headers:</label>
+      <AdditionalFields
+        fields={headers}
+        onFieldChange={handleHeaderChange}
+        onRemoveField={handleRemoveHeader}
+        onAddField={handleAddHeader}
+        hideType={true}
       />
       <SchemaField value={schemaInput} onChange={setSchemaInput} />
       {method !== "GET" && (

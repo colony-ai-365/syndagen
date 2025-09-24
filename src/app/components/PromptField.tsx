@@ -67,7 +67,6 @@ export default function PromptField({
           }
           className="border px-2 py-1 rounded font-mono w-1/6"
           placeholder="key"
-          disabled={false}
         />
         <div className="relative w-full">
           {/* Highlight preview layer */}
