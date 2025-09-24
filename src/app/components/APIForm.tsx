@@ -3,16 +3,19 @@ import PromptField from "../components/PromptField";
 import AdditionalFields from "../components/AdditionalFields";
 import ResultDisplay from "../components/ResultDisplay";
 
-export default function APIForm() {
+type APIFormProps = {
+  setResult: (val: string) => void;
+  setError: (val: string) => void;
+};
+
+export default function APIForm({ setResult, setError }: APIFormProps) {
   const [route, setRoute] = useState("");
   const [fields, setFields] = useState([
     { key: "", value: "", type: "string" },
   ]);
   const [method, setMethod] = useState("GET");
   const [field, setField] = useState("");
-  const [result, setResult] = useState<string>("");
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string>("");
 
   const handleFieldChange = (
     idx: number,

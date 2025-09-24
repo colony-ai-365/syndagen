@@ -18,14 +18,18 @@ export default function PromptField({
         <input
           type="text"
           value={keyName}
-          onChange={(e) => onKeyChange(e.target.value)}
+          onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+            onKeyChange(e.target.value)
+          }
           className="border px-2 py-1 rounded font-mono w-1/6"
           placeholder="key"
-          disabled
+          disabled={false}
         />
         <textarea
           value={value}
-          onChange={(e) => onValueChange(e.target.value)}
+          onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) =>
+            onValueChange(e.target.value)
+          }
           className="border px-3 py-2 rounded font-mono w-full min-h-[120px] resize-y text-base"
           placeholder="Enter your prompt here..."
         />
