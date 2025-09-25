@@ -1,3 +1,5 @@
+// layout.tsx
+// Root layout component for the Syndagen app. Sets up fonts, metadata, and global structure.
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";

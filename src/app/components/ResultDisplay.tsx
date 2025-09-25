@@ -1,3 +1,5 @@
+// ResultDisplay.tsx
+// Component for displaying API response results or error messages in a formatted way.
 type ResultDisplayProps = {
   result: any;
   error: string;

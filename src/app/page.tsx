@@ -1,3 +1,5 @@
+// page.tsx
+// Main home page for the Syndagen API testing app. Manages result state and renders the form and display components.
 "use client";
 import { useState } from "react";
 import APIForm from "./components/APIForm";

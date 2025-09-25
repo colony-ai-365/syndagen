@@ -1,3 +1,5 @@
+// SchemaField.tsx
+// Component for inputting expected schema fields for API response validation.
 type SchemaFieldProps = {
   value: string;
   onChange: (val: string) => void;

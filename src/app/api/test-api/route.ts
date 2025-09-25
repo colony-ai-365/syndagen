@@ -1,67 +1,99 @@
+// route.ts
+// API route for testing external APIs, extracting fields, and validating schema
+
+/**
+ * Extracts a nested field from an object using dot notation and array indices.
+ */
+function extractField(obj: any, field: string): any {
+  if (!field || typeof obj !== "object" || obj === null) return obj;
+  const pathRegex = /([\w-]+)(\[(\d+)\])?/g;
+  const keys = field.split(".");
+  let data = obj;
+  for (const rawKey of keys) {
+    const matches = Array.from(rawKey.matchAll(pathRegex));
+    for (const m of matches) {
+      const key = m[1];
+      if (data && typeof data === "object" && key in data) {
+        data = data[key];
+      } else {
+        return undefined;
+      }
+      // Handle array indices like key[2]
+      if (m[3] !== undefined && Array.isArray(data)) {
+        const idx = Number(m[3]);
+        if (data.length > idx) {
+          data = data[idx];
+        } else {
+          return undefined;
+        }
+      }
+    }
+    if (data === undefined) break;
+  }
+  return data;
+}
+
+/**
+ * Validates that all fields in schema exist and are strings in the response object.
+ */
+function validateSchema(obj: any, schema: string[]): string | null {
+  if (typeof obj !== "object" || obj === null) {
+    return "Response is not an object for schema validation.";
+  }
+  for (const fieldName of schema) {
+    if (!(fieldName in obj) || typeof obj[fieldName] !== "string") {
+      return `Schema validation failed: missing or non-string field '${fieldName}'.`;
+    }
+  }
+  return null;
+}
+
 export async function POST(req: Request) {
   try {
     const { route, body, method, field, schema, headers } = await req.json();
+
+    // Build the API URL - add https:// prefix if not already present
     const apiUrl = route.startsWith("http")
       ? route
       : `https://${route.replace(/^\//, "")}`;
-    // Merge custom headers with default
+
+    // Merge custom headers with default Content-Type
     const mergedHeaders: Record<string, string> = {
       "Content-Type": "application/json",
       ...(headers || {}),
     };
+
+    // Build fetch options
     const fetchOptions: RequestInit = {
       method: method || "GET",
       headers: mergedHeaders,
     };
+
+    // Add body for non-GET requests
     if (method && method !== "GET" && body !== undefined) {
       fetchOptions.body = JSON.stringify(body);
     }
+
+    // Make the API request
     const res = await fetch(apiUrl, fetchOptions);
     const text = await res.text();
+
+    // Parse response as JSON, fallback to raw text
     let json;
     try {
       json = JSON.parse(text);
     } catch {
       json = { raw: text };
     }
+
     let responseData = json;
-    // console.log(json);
+
+    // Extract specific field if requested
     if (field && typeof json === "object" && json !== null) {
-      // Split by dot, but handle array indices like key2[2]
-      const pathRegex = /([\w-]+)(\[(\d+)\])?/g;
-      const keys = field.split(".");
-      for (const rawKey of keys) {
-        const match = Array.from(
-          rawKey.matchAll(pathRegex)
-        ) as RegExpMatchArray[];
-        for (const m of match) {
-          const key = m[1];
-          if (
-            responseData &&
-            typeof responseData === "object" &&
-            key in responseData
-          ) {
-            responseData = responseData[key];
-          } else {
-            responseData = undefined;
-            break;
-          }
-          // If array index present, traverse array
-          if (m[3] !== undefined && Array.isArray(responseData)) {
-            const idx = Number(m[3]);
-            if (responseData.length > idx) {
-              responseData = responseData[idx];
-            } else {
-              responseData = undefined;
-              break;
-            }
-          }
-        }
-        if (responseData === undefined) break;
-      }
-      // If the field value is a JSON string, parse it
+      responseData = extractField(json, field);
+
+      // If the extracted field is a JSON string, try to parse it
       if (typeof responseData === "string") {
-        // Match the longest string wrapped by two curly braces
         const match = responseData.match(/({[\s\S]*})/);
         if (match && match[1]) {
           try {
@@ -85,31 +117,19 @@ export async function POST(req: Request) {
           }
         }
       }
-      // Schema validation
+
+      // Validate against expected schema if provided
       if (schema && Array.isArray(schema)) {
-        if (typeof responseData !== "object" || responseData === null) {
-          return new Response(
-            JSON.stringify({
-              error: "Response is not an object for schema validation.",
-            }),
-            { status: 400, headers: { "Content-Type": "application/json" } }
-          );
-        }
-        for (const fieldName of schema) {
-          if (
-            !(fieldName in responseData) ||
-            typeof responseData[fieldName] !== "string"
-          ) {
-            return new Response(
-              JSON.stringify({
-                error: `Schema validation failed: missing or non-string field '${fieldName}'.`,
-              }),
-              { status: 400, headers: { "Content-Type": "application/json" } }
-            );
-          }
+        const schemaError = validateSchema(responseData, schema);
+        if (schemaError) {
+          return new Response(JSON.stringify({ error: schemaError }), {
+            status: 400,
+            headers: { "Content-Type": "application/json" },
+          });
         }
       }
     }
+
     return new Response(JSON.stringify({ data: responseData }), {
       status: 200,
       headers: { "Content-Type": "application/json" },

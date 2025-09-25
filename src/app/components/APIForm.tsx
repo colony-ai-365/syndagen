@@ -1,4 +1,8 @@
+// APIForm.tsx
+// Main form component for building and sending API requests. Uses custom hooks for managing fields, headers, and prompt variables.
 import { useState } from "react";
+import { useFields, useHeaders } from "../hooks/useFields";
+import { usePromptVariables } from "../hooks/usePromptVariables";
 import PromptField from "../components/PromptField";
 import AdditionalFields from "../components/AdditionalFields";
 import ResultDisplay from "../components/ResultDisplay";
@@ -10,86 +14,45 @@ type APIFormProps = {
 };
 
 export default function APIForm({ setResult, setError }: APIFormProps) {
-  // For variable selection in PromptField
+  // State for prompt variables
   const [variableSelections, setVariableSelections] = useState<
     Record<string, number>
   >({});
   const [variableValues, setVariableValues] = useState<
     Record<string, string[]>
   >({});
-  const [injectedPrompt, setInjectedPrompt] = useState<string>("");
   const [route, setRoute] = useState("");
-  const [fields, setFields] = useState([
-    { key: "", value: "", type: "string" },
-  ]);
-  const [headers, setHeaders] = useState([{ key: "", value: "" }]);
   const [method, setMethod] = useState("GET");
   const [field, setField] = useState("");
-  const [schemaInput, setSchemaInput] = useState(""); // comma-separated
+  const [schemaInput, setSchemaInput] = useState("");
   const [loading, setLoading] = useState(false);
-  // Header field handlers
-  const handleHeaderChange = (
-    idx: number,
-    fieldType: "key" | "value" | "type",
-    val: string
-  ) => {
-    if (fieldType === "type") return; // ignore type for headers
-    setHeaders((headers) =>
-      headers.map((h, i) => (i === idx ? { ...h, [fieldType]: val } : h))
-    );
-  };
 
-  const handleAddHeader = () => {
-    setHeaders((headers) => [...headers, { key: "", value: "" }]);
-  };
+  // Use custom hooks for fields and headers
+  const {
+    fields,
+    setFields,
+    handleFieldChange,
+    handleAddField,
+    handleRemoveField,
+  } = useFields();
+  const {
+    headers,
+    setHeaders,
+    handleHeaderChange,
+    handleAddHeader,
+    handleRemoveHeader,
+  } = useHeaders();
 
-  const handleRemoveHeader = (idx: number) => {
-    if (idx === 0) return;
-    setHeaders((headers) => headers.filter((_, i) => i !== idx));
-  };
-
-  const handleFieldChange = (
-    idx: number,
-    fieldType: "key" | "value" | "type",
-    val: string
-  ) => {
-    setFields((fields) =>
-      fields.map((f, i) => (i === idx ? { ...f, [fieldType]: val } : f))
-    );
-  };
-
-  const handleAddField = () => {
-    setFields((fields) => [...fields, { key: "", value: "", type: "string" }]);
-  };
-
-  const handleRemoveField = (idx: number) => {
-    if (idx === 0) return;
-    setFields((fields) => fields.filter((_, i) => i !== idx));
-  };
+  // Use custom hook for prompt variables
+  const { injectVariables } = usePromptVariables(fields[0].value);
 
   // Helper to get injected prompt value from PromptField
   const getInjectedPrompt = () => {
-    let prompt = fields[0].value;
-    // Detect variables
-    const variableRegex = /{{\s*([\w.-]+)\s*}}/g;
-    const found = Array.from(
-      new Set([...prompt.matchAll(variableRegex)].map((m) => m[1]))
-    );
-    let injected = prompt;
-    for (const v of found) {
-      const vals = variableValues[v] || [""];
-      const idx = variableSelections[v] ?? 0;
-      const selectedValue = vals[idx] || "";
-      injected = injected.replace(
-        new RegExp(`{{\\s*${v}\\s*}}`, "g"),
-        selectedValue
-      );
-    }
-    setInjectedPrompt(injected);
-    console.log(injected);
+    const injected = injectVariables(variableValues, variableSelections);
     return injected;
   };
 
+  // Build request body
   const buildBody = () => {
     const obj: Record<string, any> = {};
     fields.forEach(({ key, value, type }, idx) => {
@@ -116,6 +79,7 @@ export default function APIForm({ setResult, setError }: APIFormProps) {
     return obj;
   };
 
+  // Handle form submit
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);

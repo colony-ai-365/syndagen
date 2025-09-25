@@ -1,4 +1,7 @@
-import { useState, useEffect, useRef } from "react";
+// PromptField.tsx
+// Component for editing the prompt and managing dynamic variables. Uses usePromptVariables hook for variable detection.
+import { useRef } from "react";
+import { usePromptVariables } from "../hooks/usePromptVariables";
 
 type PromptFieldProps = {
   keyName: string;
@@ -21,59 +24,24 @@ export default function PromptField({
   variableValues,
   setVariableValues,
 }: PromptFieldProps) {
-  // Detect dynamic variables in prompt
-  const variableRegex = /{{\s*([\w.-]+)\s*}}/g;
-  const [variables, setVariables] = useState<string[]>([]);
-  // Use variableValues/setVariableValues from props if provided
-  // Selection index for each variable
-  const [selections, setSelections] = useState<Record<string, number>>({});
+  // Use custom hook for variable detection in the prompt string
+  const { variables } = usePromptVariables(value);
+  // Ref for selection index (not used for state, just for scroll sync)
+  const selectionsRef = useRef<Record<string, number>>({});
+  // Refs for textarea and preview div to sync scroll positions
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const previewRef = useRef<HTMLDivElement>(null);
 
-  useEffect(() => {
-    const found = Array.from(
-      new Set([...value.matchAll(variableRegex)].map((m) => m[1]))
-    );
-    setVariables(found);
-
-    // Remove values for variables no longer present
-    if (setVariableValues && variableValues) {
-      setVariableValues({
-        ...variableValues,
-        ...Object.fromEntries(found.map((v) => [v, variableValues[v] || [""]])),
-      });
-    }
-    setSelections((prev) => {
-      const updated: Record<string, number> = {};
-      for (const v of found) {
-        updated[v] = prev[v] ?? 0;
-      }
-      return updated;
-    });
-  }, [value]);
-
-  // Highlight variables in preview
+  // Highlight variables in the prompt preview using a span
   const getHighlightedPrompt = () => {
     if (!value) return "";
-    return value.replace(variableRegex, (match) => {
+    // Replace all {{variable}} with highlighted span
+    return value.replace(/{{\s*([\w.-]+)\s*}}/g, (match) => {
       return `<span style='color: orange; font-weight: bold;'>${match}</span>`;
     });
   };
 
-  // Replace variables with selected values
-  const getInjectedPrompt = () => {
-    let result = value;
-    for (const v of variables) {
-      const vals = variableValues ? variableValues[v] || [""] : [""];
-      const idx = selections[v] ?? 0;
-      const selected = vals[idx] || "";
-      result = result.replace(new RegExp(`{{\s*${v}\s*}}`, "g"), selected);
-    }
-    return result;
-  };
-
-  // Refs for scroll sync
-  const textareaRef = useRef<HTMLTextAreaElement>(null);
-  const previewRef = useRef<HTMLDivElement>(null);
-
+  // Sync scroll position between textarea and preview
   const handleScroll = () => {
     if (textareaRef.current && previewRef.current) {
       previewRef.current.scrollTop = textareaRef.current.scrollTop;
@@ -131,7 +99,7 @@ export default function PromptField({
         </div>
       </div>
 
-      {/* Dynamic variable inputs: list of values for each */}
+      {/* Dynamic variable inputs: list of values for each variable detected in the prompt */}
       {variables.length > 0 && (
         <div className="mt-2">
           <label className="font-semibold text-base mb-1 block">
@@ -147,15 +115,18 @@ export default function PromptField({
                     variableValues ? variableValues[v]?.join(",") || "" : ""
                   }
                   onChange={(e) => {
-                    // Do not trim or filter, allow spaces and commas
+                    // Split input into array of values for this variable
                     const vals = e.target.value.split(",");
                     if (setVariableValues && variableValues) {
                       setVariableValues({ ...variableValues, [v]: vals });
                     }
                     // Always update selection to 0 if values change
-                    setSelections((prev) => ({ ...prev, [v]: 0 }));
-                    setVariableSelections &&
-                      setVariableSelections({ ...selections, [v]: 0 });
+                    if (setVariableSelections) {
+                      setVariableSelections({
+                        ...(variableSelections || {}),
+                        [v]: 0,
+                      });
+                    }
                   }}
                   className="border px-2 py-1 rounded w-2/3"
                   placeholder={`Values for ${v} (comma separated)`}
@@ -166,7 +137,7 @@ export default function PromptField({
         </div>
       )}
 
-      {/* Dropdowns for selecting which value to inject */}
+      {/* Dropdowns for selecting which value to inject for each variable */}
       {variables.length > 0 && (
         <div className="mt-2">
           <label className="font-semibold text-base mb-1 block">
@@ -177,12 +148,16 @@ export default function PromptField({
               <div key={v} className="flex gap-2 items-center">
                 <span className="font-mono text-orange-600">{v}</span>
                 <select
-                  value={selections[v] ?? 0}
+                  value={variableSelections ? variableSelections[v] ?? 0 : 0}
                   onChange={(e) => {
+                    // Update selection index for this variable
                     const idx = Number(e.target.value);
-                    setSelections((prev) => ({ ...prev, [v]: idx }));
-                    setVariableSelections &&
-                      setVariableSelections({ ...selections, [v]: idx });
+                    if (setVariableSelections) {
+                      setVariableSelections({
+                        ...(variableSelections || {}),
+                        [v]: idx,
+                      });
+                    }
                   }}
                   className="border px-2 py-1 rounded w-2/3"
                 >
