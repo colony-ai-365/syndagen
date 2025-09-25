@@ -27,7 +27,7 @@ export default function EditRequestPage() {
 
   return (
     <div className="min-h-screen p-8 flex flex-col items-center justify-center gap-8 font-sans">
-      <h1 className="text-2xl font-bold">API Tester</h1>
+      <h1 className="text-2xl font-bold">Request Configuration</h1>
       {loading ? (
         <div>Loading...</div>
       ) : config && config.id ? (
