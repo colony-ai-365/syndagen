@@ -26,6 +26,12 @@ export default function APIForm({ setResult, setError }: APIFormProps) {
   const [field, setField] = useState("");
   const [schemaInput, setSchemaInput] = useState("");
   const [loading, setLoading] = useState(false);
+  // Request name state (for edit/[id] page)
+  const [requestName, setRequestName] = useState<string>("");
+
+  // Fetch request name if available from global/window (for edit/[id] page)
+  // This is a placeholder; actual implementation should fetch config by id and set name
+  // For now, just show a field at the top
 
   // Use custom hooks for fields and headers
   const {
@@ -132,6 +138,17 @@ export default function APIForm({ setResult, setError }: APIFormProps) {
       onSubmit={handleSubmit}
       className="flex flex-col gap-4 w-full max-w-full"
     >
+      {/* Request Name field (read-only for now) */}
+      <label className="font-medium">Request Name:</label>
+      <input
+        type="text"
+        value={requestName}
+        onChange={() => {}}
+        className="border px-3 py-2 rounded bg-gray-100 text-gray-700"
+        placeholder="Request name"
+        readOnly
+      />
+      {/* ...existing code... */}
       <label className="font-medium">Request Method:</label>
       <select
         value={method}
@@ -154,6 +171,7 @@ export default function APIForm({ setResult, setError }: APIFormProps) {
           PATCH
         </option>
       </select>
+      {/* ...existing code... */}
       <label className="font-medium">API Route (absolute or relative):</label>
       <input
         type="text"
@@ -163,6 +181,7 @@ export default function APIForm({ setResult, setError }: APIFormProps) {
         placeholder="e.g. https://jsonplaceholder.typicode.com/posts"
         required
       />
+      {/* ...existing code... */}
       <label className="font-medium">Field Name (optional):</label>
       <input
         type="text"
@@ -171,6 +190,7 @@ export default function APIForm({ setResult, setError }: APIFormProps) {
         className="border px-3 py-2 rounded"
         placeholder="e.g. id"
       />
+      {/* ...existing code... */}
       <label className="font-medium">Custom Headers:</label>
       <AdditionalFields
         fields={headers}
