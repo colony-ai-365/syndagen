@@ -39,8 +39,18 @@ export default function APIForm({ setResult, setError }: APIFormProps) {
       }
       additionalFieldsObj[key] = parsed;
     });
-    // Save headers as array of { key, value } objects
-    const headersArray = Array.isArray(headers) ? headers : [];
+    // Save prompt as key-value pair object
+    const promptObj: Record<string, any> = {};
+    if (fields[0]?.key) {
+      promptObj[fields[0].key] = fields[0].value;
+    }
+    // Save headers as object for DB/API
+    const headersObject: Record<string, string> = {};
+    if (Array.isArray(headers)) {
+      headers.forEach(({ key, value }) => {
+        if (key) headersObject[key] = value;
+      });
+    }
     // Parse schema input into array
     let schema: string[] | undefined = undefined;
     if (schemaInput.trim()) {
@@ -54,10 +64,10 @@ export default function APIForm({ setResult, setError }: APIFormProps) {
       route,
       method,
       field,
-      prompt: fields[0]?.value || "",
+      prompt: promptObj,
       additional_fields: additionalFieldsObj,
       variables: variableValues,
-      headers: headersArray,
+      headers: headersObject,
       schema,
     };
   };
@@ -130,13 +140,105 @@ export default function APIForm({ setResult, setError }: APIFormProps) {
             })()
         : ""
     );
+    // Load prompt as key-value pair for fields[0]
+    if (initialConfig.prompt) {
+      try {
+        const parsedPrompt =
+          typeof initialConfig.prompt === "string"
+            ? JSON.parse(initialConfig.prompt)
+            : initialConfig.prompt;
+        if (
+          parsedPrompt &&
+          typeof parsedPrompt === "object" &&
+          !Array.isArray(parsedPrompt)
+        ) {
+          const [[promptKey, promptValue]] = Object.entries(parsedPrompt);
+          setFields((fields) => {
+            const rest = fields.slice(1);
+            return [
+              { key: promptKey, value: String(promptValue), type: "string" },
+              ...rest,
+            ];
+          });
+        }
+      } catch {
+        // fallback: keep existing prompt field
+      }
+    }
     // Optionally load headers, variables, etc.
     if (initialConfig.headers) {
       try {
         const parsedHeaders = JSON.parse(initialConfig.headers);
-        setHeaders(Array.isArray(parsedHeaders) ? parsedHeaders : []);
+        // Convert object to array for UI
+        if (
+          parsedHeaders &&
+          typeof parsedHeaders === "object" &&
+          !Array.isArray(parsedHeaders)
+        ) {
+          setHeaders(
+            Object.entries(parsedHeaders).map(([key, value]) => ({
+              key,
+              value: String(value),
+            }))
+          );
+        } else if (Array.isArray(parsedHeaders)) {
+          setHeaders(parsedHeaders);
+        } else {
+          setHeaders([]);
+        }
       } catch {
         setHeaders([]);
+      }
+    }
+    // Load additional_fields as array for UI
+    if (initialConfig.additional_fields) {
+      try {
+        const parsedFields =
+          typeof initialConfig.additional_fields === "string"
+            ? JSON.parse(initialConfig.additional_fields)
+            : initialConfig.additional_fields;
+        if (
+          parsedFields &&
+          typeof parsedFields === "object" &&
+          !Array.isArray(parsedFields)
+        ) {
+          setFields((fields) => {
+            // Keep prompt field as first
+            const promptField = fields[0] || {
+              key: "prompt",
+              value: "",
+              type: "string",
+            };
+            const additionalArray = Object.entries(parsedFields).map(
+              ([key, value]) => ({
+                key,
+                value: String(value),
+                type: typeof value,
+              })
+            );
+            return [promptField, ...additionalArray];
+          });
+        }
+      } catch {
+        setFields((fields) => [fields[0]]);
+      }
+    }
+    // Load variables as object { var1: [val1, val2], ... }
+    if (initialConfig.variables) {
+      try {
+        const parsedVariables =
+          typeof initialConfig.variables === "string"
+            ? JSON.parse(initialConfig.variables)
+            : initialConfig.variables;
+        if (
+          parsedVariables &&
+          typeof parsedVariables === "object" &&
+          !Array.isArray(parsedVariables)
+        ) {
+          setVariableValues(parsedVariables);
+        }
+      } catch {
+        setVariableValues({});
       }
     }
     // ...other fields as needed

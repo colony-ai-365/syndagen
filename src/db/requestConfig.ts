@@ -60,7 +60,8 @@ export function updateRequestConfig(
       key === "headers" ||
       key === "variables" ||
       key === "schema" ||
-      key === "additional_fields"
+      key === "additional_fields" ||
+      key === "prompt"
     ) {
       values.push(value ? JSON.stringify(value) : null);
     } else {
