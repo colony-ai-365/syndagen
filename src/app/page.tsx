@@ -50,6 +50,29 @@ export default function HomePage() {
     setCreating(false);
   };
 
+  // Handle delete request
+  const handleDelete = async (id: number) => {
+    if (!window.confirm("Are you sure you want to delete this request?"))
+      return;
+    setLoading(true);
+    setError("");
+    try {
+      const res = await fetch(`/api/request-config/${id}`, {
+        method: "DELETE",
+      });
+      const data = await res.json();
+      if (res.ok && data.success) {
+        fetchConfigs();
+      } else {
+        setError(data.error || "Failed to delete request");
+        setLoading(false);
+      }
+    } catch {
+      setError("Failed to delete request");
+      setLoading(false);
+    }
+  };
+
   return (
     <div className="min-h-screen p-8 flex flex-col items-center gap-8 font-sans">
       <h1 className="text-2xl font-bold">Saved Request Configs</h1>
@@ -93,12 +116,22 @@ export default function HomePage() {
                   ({cfg.method} {cfg.route})
                 </span>
               </span>
-              <Link
-                href={`requests/edit/${cfg.id}`}
-                className="px-3 py-1 bg-blue-600 text-white rounded"
-              >
-                Edit & Test
-              </Link>
+              <div className="flex gap-2">
+                <Link
+                  href={`requests/edit/${cfg.id}`}
+                  className="px-3 py-1 bg-blue-600 text-white rounded"
+                >
+                  Edit & Test
+                </Link>
+                <button
+                  className="px-3 py-1 bg-red-600 text-white rounded"
+                  onClick={() => handleDelete(cfg.id)}
+                  disabled={loading}
+                  title="Delete request"
+                >
+                  Delete
+                </button>
+              </div>
             </li>
           ))}
         </ul>

@@ -10,6 +10,7 @@ CREATE TABLE IF NOT EXISTS request_configs (
     name TEXT NOT NULL UNIQUE,
     route TEXT,
     method TEXT DEFAULT 'GET',
+    additional_fields TEXT,
     field TEXT,
     headers TEXT,
     prompt TEXT,
@@ -55,7 +56,12 @@ export function updateRequestConfig(
   for (const key in config) {
     fields.push(`${key} = ?`);
     const value = (config as any)[key];
-    if (key === "headers" || key === "variables" || key === "schema") {
+    if (
+      key === "headers" ||
+      key === "variables" ||
+      key === "schema" ||
+      key === "additional_fields"
+    ) {
       values.push(value ? JSON.stringify(value) : null);
     } else {
       values.push(value);

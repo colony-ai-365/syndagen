@@ -7,6 +7,11 @@ import PromptField from "../components/PromptField";
 import AdditionalFields from "../components/AdditionalFields";
 import ResultDisplay from "../components/ResultDisplay";
 import SchemaField from "../components/SchemaField";
+import RequestMetaSection from "./RequestMetaSection";
+import HeadersSection from "./HeadersSection";
+import PromptSection from "./PromptSection";
+import BodyFieldsSection from "./BodyFieldsSection";
+import ActionButtonsSection from "./ActionButtonsSection";
 
 type APIFormProps = {
   setResult: (val: string) => void;
@@ -15,6 +20,77 @@ type APIFormProps = {
 };
 
 export default function APIForm({ setResult, setError }: APIFormProps) {
+  // Save changes to request config
+  const [saveLoading, setSaveLoading] = useState(false);
+  const [saveMessage, setSaveMessage] = useState("");
+
+  // Helper to build DB payload
+  const buildConfigPayload = () => {
+    // Map fields to DB structure
+    const additionalFieldsObj: Record<string, any> = {};
+    fields.slice(1).forEach(({ key, value, type }) => {
+      if (!key) return;
+      let parsed: any = value;
+      if (type === "boolean") {
+        parsed = value === "true";
+      } else if (type === "number") {
+        const num = Number(value);
+        parsed = isNaN(num) ? value : num;
+      }
+      additionalFieldsObj[key] = parsed;
+    });
+    // Save headers as array of { key, value } objects
+    const headersArray = Array.isArray(headers) ? headers : [];
+    // Parse schema input into array
+    let schema: string[] | undefined = undefined;
+    if (schemaInput.trim()) {
+      schema = schemaInput
+        .split(",")
+        .map((s) => s.trim())
+        .filter(Boolean);
+    }
+    return {
+      name: requestName,
+      route,
+      method,
+      field,
+      prompt: fields[0]?.value || "",
+      additional_fields: additionalFieldsObj,
+      variables: variableValues,
+      headers: headersArray,
+      schema,
+    };
+  };
+
+  // Save changes handler
+  const handleSaveChanges = async () => {
+    setSaveLoading(true);
+    setSaveMessage("");
+    try {
+      // Assume initialConfig.id is available for edit
+      const id = arguments[0]?.initialConfig?.id;
+      if (!id) {
+        setSaveMessage("No config ID found.");
+        setSaveLoading(false);
+        return;
+      }
+      const payload = buildConfigPayload();
+      const res = await fetch(`/api/request-config/${id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+      const data = await res.json();
+      if (res.ok && data.success) {
+        setSaveMessage("Changes saved successfully.");
+      } else {
+        setSaveMessage(data.error || "Failed to save changes.");
+      }
+    } catch (err) {
+      setSaveMessage("Failed to save changes.");
+    }
+    setSaveLoading(false);
+  };
   // State for prompt variables
   const [variableSelections, setVariableSelections] = useState<
     Record<string, number>
@@ -57,7 +133,8 @@ export default function APIForm({ setResult, setError }: APIFormProps) {
     // Optionally load headers, variables, etc.
     if (initialConfig.headers) {
       try {
-        setHeaders(JSON.parse(initialConfig.headers));
+        const parsedHeaders = JSON.parse(initialConfig.headers);
+        setHeaders(Array.isArray(parsedHeaders) ? parsedHeaders : []);
       } catch {
         setHeaders([]);
       }
@@ -174,97 +251,49 @@ export default function APIForm({ setResult, setError }: APIFormProps) {
       onSubmit={handleSubmit}
       className="flex flex-col gap-4 w-full max-w-full"
     >
-      {/* Request Name field (read-only for now) */}
-      <label className="font-medium">Request Name:</label>
-      <input
-        type="text"
-        value={requestName}
-        onChange={() => {}}
-        className="border px-3 py-2 rounded bg-gray-100 text-gray-700"
-        placeholder="Request name"
-        readOnly
+      <RequestMetaSection
+        requestName={requestName}
+        method={method}
+        setMethod={setMethod}
+        route={route}
+        setRoute={setRoute}
+        field={field}
+        setField={setField}
+        schemaInput={schemaInput}
+        setSchemaInput={setSchemaInput}
       />
-      {/* ...existing code... */}
-      <label className="font-medium">Request Method:</label>
-      <select
-        value={method}
-        onChange={(e) => setMethod(e.target.value)}
-        className="border px-3 py-2 rounded bg-gray-900 text-white"
-      >
-        <option value="GET" className="bg-gray-900 text-white">
-          GET
-        </option>
-        <option value="POST" className="bg-gray-900 text-white">
-          POST
-        </option>
-        <option value="PUT" className="bg-gray-900 text-white">
-          PUT
-        </option>
-        <option value="DELETE" className="bg-gray-900 text-white">
-          DELETE
-        </option>
-        <option value="PATCH" className="bg-gray-900 text-white">
-          PATCH
-        </option>
-      </select>
-      {/* ...existing code... */}
-      <label className="font-medium">API Route (absolute or relative):</label>
-      <input
-        type="text"
-        value={route}
-        onChange={(e) => setRoute(e.target.value)}
-        className="border px-3 py-2 rounded"
-        placeholder="e.g. https://jsonplaceholder.typicode.com/posts"
-        required
+      <HeadersSection
+        headers={headers}
+        handleHeaderChange={handleHeaderChange}
+        handleRemoveHeader={handleRemoveHeader}
+        handleAddHeader={handleAddHeader}
       />
-      {/* ...existing code... */}
-      <label className="font-medium">Field Name (optional):</label>
-      <input
-        type="text"
-        value={field}
-        onChange={(e) => setField(e.target.value)}
-        className="border px-3 py-2 rounded"
-        placeholder="e.g. id"
-      />
-      {/* ...existing code... */}
-      <label className="font-medium">Custom Headers:</label>
-      <AdditionalFields
-        fields={headers}
-        onFieldChange={handleHeaderChange}
-        onRemoveField={handleRemoveHeader}
-        onAddField={handleAddHeader}
-        hideType={true}
-      />
-      <SchemaField value={schemaInput} onChange={setSchemaInput} />
       {method !== "GET" && (
         <>
-          <PromptField
-            keyName={fields[0].key}
-            value={fields[0].value}
-            onKeyChange={(val) => handleFieldChange(0, "key", val)}
-            onValueChange={(val) => handleFieldChange(0, "value", val)}
+          <PromptSection
+            fields={fields}
+            handleFieldChange={handleFieldChange}
             variableSelections={variableSelections}
             setVariableSelections={setVariableSelections}
             variableValues={variableValues}
             setVariableValues={setVariableValues}
           />
-          <AdditionalFields
-            fields={fields.slice(1)}
-            onFieldChange={(idx, type, val) =>
-              handleFieldChange(idx + 1, type, val)
-            }
-            onRemoveField={(idx) => handleRemoveField(idx + 1)}
-            onAddField={handleAddField}
+          <BodyFieldsSection
+            fields={fields}
+            handleFieldChange={handleFieldChange}
+            handleRemoveField={handleRemoveField}
+            handleAddField={handleAddField}
           />
         </>
       )}
-      <button
-        type="submit"
-        className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 disabled:opacity-50"
-        disabled={loading}
-      >
-        {loading ? "Testing..." : "Send Request"}
-      </button>
+      <ActionButtonsSection
+        loading={loading}
+        handleSubmit={handleSubmit}
+        saveLoading={saveLoading}
+        handleSaveChanges={handleSaveChanges}
+        initialConfig={arguments[0]?.initialConfig}
+        saveMessage={saveMessage}
+      />
     </form>
   );
 }

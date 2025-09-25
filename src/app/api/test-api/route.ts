@@ -135,7 +135,6 @@ export async function POST(req: Request) {
       headers: { "Content-Type": "application/json" },
     });
   } catch (err) {
-    console.log(err);
     return new Response(
       JSON.stringify({ error: "Failed to call API", details: String(err) }),
       { status: 500 }
