@@ -1,6 +1,6 @@
 // APIForm.tsx
 // Main form component for building and sending API requests. Uses custom hooks for managing fields, headers, and prompt variables.
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useFields, useHeaders } from "../hooks/useFields";
 import { usePromptVariables } from "../hooks/usePromptVariables";
 import PromptField from "../components/PromptField";
@@ -11,6 +11,7 @@ import SchemaField from "../components/SchemaField";
 type APIFormProps = {
   setResult: (val: string) => void;
   setError: (val: string) => void;
+  initialConfig?: any;
 };
 
 export default function APIForm({ setResult, setError }: APIFormProps) {
@@ -21,13 +22,48 @@ export default function APIForm({ setResult, setError }: APIFormProps) {
   const [variableValues, setVariableValues] = useState<
     Record<string, string[]>
   >({});
-  const [route, setRoute] = useState("");
-  const [method, setMethod] = useState("GET");
-  const [field, setField] = useState("");
-  const [schemaInput, setSchemaInput] = useState("");
+  const [route, setRoute] = useState<string>("");
+  const [method, setMethod] = useState<string>("GET");
+  const [field, setField] = useState<string>("");
+  const [schemaInput, setSchemaInput] = useState<string>("");
   const [loading, setLoading] = useState(false);
   // Request name state (for edit/[id] page)
   const [requestName, setRequestName] = useState<string>("");
+
+  // Use initialConfig from props
+  // Only runs once on mount or when initialConfig changes
+  // UseEffect must be at top level
+  // eslint-disable-next-line react-hooks/rules-of-hooks
+  useEffect(() => {
+    if (!arguments[0] || !arguments[0].initialConfig) return;
+    const initialConfig = arguments[0].initialConfig;
+    setRequestName(initialConfig.name || "");
+    setRoute(initialConfig.route || "");
+    setMethod(initialConfig.method || "GET");
+    setField(initialConfig.field || "");
+    setSchemaInput(
+      initialConfig.schema
+        ? Array.isArray(initialConfig.schema)
+          ? initialConfig.schema.join(", ")
+          : (() => {
+              try {
+                return JSON.parse(initialConfig.schema).join(", ");
+              } catch {
+                return "";
+              }
+            })()
+        : ""
+    );
+    // Optionally load headers, variables, etc.
+    if (initialConfig.headers) {
+      try {
+        setHeaders(JSON.parse(initialConfig.headers));
+      } catch {
+        setHeaders([]);
+      }
+    }
+    // ...other fields as needed
+  }, [arguments[0]?.initialConfig]);
 
   // Fetch request name if available from global/window (for edit/[id] page)
   // This is a placeholder; actual implementation should fetch config by id and set name

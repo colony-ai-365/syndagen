@@ -9,7 +9,7 @@ CREATE TABLE IF NOT EXISTS request_configs (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     name TEXT NOT NULL UNIQUE,
     route TEXT,
-    method TEXT,
+    method TEXT DEFAULT 'GET',
     field TEXT,
     headers TEXT,
     prompt TEXT,
