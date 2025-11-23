@@ -8,16 +8,16 @@ type Header = { key: string; value: string };
 type VariableValues = Record<string, string[]>;
 
 export type InitialConfig = {
-  id?: string | number;
+  id?: string;
   name?: string;
   route?: string;
   method?: string;
   field?: string;
-  schema?: string[] | string;
-  prompt?: Record<string, any> | string;
-  headers?: Record<string, string> | Header[] | string;
-  additional_fields?: Record<string, any> | string;
-  variables?: VariableValues | string;
+  schema?: string;
+  prompt?: string;
+  headers?: string;
+  additional_fields?: string;
+  variables?: string;
 };
 
 interface UseInitialConfigLoaderProps {
@@ -54,30 +54,21 @@ export function useInitialConfigLoader({
     // Handle schema
     setSchemaInput(
       initialConfig.schema
-        ? Array.isArray(initialConfig.schema)
-          ? initialConfig.schema.join(", ")
-          : (() => {
-              try {
-                return JSON.parse(initialConfig.schema as string).join(", ");
-              } catch {
-                return "";
-              }
-            })()
+        ? (() => {
+            try {
+              return JSON.parse(initialConfig.schema).join(", ");
+            } catch {
+              return "";
+            }
+          })()
         : ""
     );
 
     // Load prompt as key-value pair for fields[0]
     if (initialConfig.prompt) {
       try {
-        const parsedPrompt =
-          typeof initialConfig.prompt === "string"
-            ? JSON.parse(initialConfig.prompt)
-            : initialConfig.prompt;
-        if (
-          parsedPrompt &&
-          typeof parsedPrompt === "object" &&
-          !Array.isArray(parsedPrompt)
-        ) {
+        const parsedPrompt = JSON.parse(initialConfig.prompt);
+        if (parsedPrompt && typeof parsedPrompt === "object") {
           const [[promptKey, promptValue]] = Object.entries(parsedPrompt);
           setFields((fields) => {
             const rest = fields.slice(1);
@@ -95,27 +86,14 @@ export function useInitialConfigLoader({
     // Load headers
     if (initialConfig.headers) {
       try {
-        let parsedHeaders: Record<string, string> | Header[];
-        if (typeof initialConfig.headers === "string") {
-          parsedHeaders = JSON.parse(initialConfig.headers);
-        } else {
-          parsedHeaders = initialConfig.headers;
-        }
-
-        // Convert object to array for UI
-        if (
-          parsedHeaders &&
-          typeof parsedHeaders === "object" &&
-          !Array.isArray(parsedHeaders)
-        ) {
+        const parsedHeaders = JSON.parse(initialConfig.headers);
+        if (parsedHeaders && typeof parsedHeaders === "object") {
           setHeaders(
             Object.entries(parsedHeaders).map(([key, value]) => ({
               key,
               value: String(value),
             }))
           );
-        } else if (Array.isArray(parsedHeaders)) {
-          setHeaders(parsedHeaders);
         } else {
           setHeaders([]);
         }
@@ -127,15 +105,8 @@ export function useInitialConfigLoader({
     // Load additional_fields as array for UI
     if (initialConfig.additional_fields) {
       try {
-        const parsedFields =
-          typeof initialConfig.additional_fields === "string"
-            ? JSON.parse(initialConfig.additional_fields)
-            : initialConfig.additional_fields;
-        if (
-          parsedFields &&
-          typeof parsedFields === "object" &&
-          !Array.isArray(parsedFields)
-        ) {
+        const parsedFields = JSON.parse(initialConfig.additional_fields);
+        if (parsedFields && typeof parsedFields === "object") {
           setFields((fields) => {
             // Keep prompt field as first
             const promptField = fields[0] || {
@@ -161,15 +132,8 @@ export function useInitialConfigLoader({
     // Load variables as object { var1: [val1, val2], ... }
     if (initialConfig.variables) {
       try {
-        const parsedVariables =
-          typeof initialConfig.variables === "string"
-            ? JSON.parse(initialConfig.variables)
-            : initialConfig.variables;
-        if (
-          parsedVariables &&
-          typeof parsedVariables === "object" &&
-          !Array.isArray(parsedVariables)
-        ) {
+        const parsedVariables = JSON.parse(initialConfig.variables);
+        if (parsedVariables && typeof parsedVariables === "object") {
           setVariableValues(parsedVariables);
         }
       } catch {

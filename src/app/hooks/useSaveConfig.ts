@@ -7,7 +7,7 @@ export function useSaveConfig() {
   const [saveLoading, setSaveLoading] = useState(false);
   const [saveMessage, setSaveMessage] = useState("");
 
-  const saveConfig = async (id: string | number | undefined, payload: any) => {
+  const saveConfig = async (id: string | undefined, payload: any) => {
     setSaveLoading(true);
     setSaveMessage("");
     try {
