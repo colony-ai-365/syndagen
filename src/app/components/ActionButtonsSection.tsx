@@ -6,7 +6,7 @@ type ActionButtonsSectionProps = {
   handleSubmit: (e: React.FormEvent) => void;
   saveLoading: boolean;
   handleSaveChanges: () => void;
-  initialConfig?: { id?: number };
+  initialConfig?: { id?: string | number };
   saveMessage: string;
 };
 
