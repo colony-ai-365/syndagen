@@ -50,7 +50,7 @@ export default function PromptField({
   };
 
   return (
-    <div className="flex flex-col gap-2 mb-4 p-4 border rounded bg-gray-50 dark:bg-gray-800">
+    <div className="flex flex-col gap-2 mb-4 p-4 border rounded bg-gray-50">
       <label className="font-bold text-lg mb-2">Prompt</label>
       <div className="flex gap-2 items-center">
         <input
@@ -91,8 +91,8 @@ export default function PromptField({
               zIndex: 2,
               background: "transparent",
               color: "transparent", // hide text
-              caretColor: "white", // show blinking caret
-              borderColor: "white", // show border --- IGNORE ---
+              caretColor: "black", // show blinking caret
+              borderColor: "black", // show border --- IGNORE ---
             }}
             placeholder="Enter your prompt here..."
           />

@@ -40,21 +40,21 @@ export default function RequestMetaSection({
       <select
         value={method}
         onChange={(e) => setMethod(e.target.value)}
-        className="border px-3 py-2 rounded bg-gray-900 text-white"
+        className="border px-3 py-2 rounded bg-gray-200 text-gray-700"
       >
-        <option value="GET" className="bg-gray-900 text-white">
+        <option value="GET" className="bg-gray-200 text-gray-700">
           GET
         </option>
-        <option value="POST" className="bg-gray-900 text-white">
+        <option value="POST" className="bg-gray-200 text-gray-700">
           POST
         </option>
-        <option value="PUT" className="bg-gray-900 text-white">
+        <option value="PUT" className="bg-gray-200 text-gray-700">
           PUT
         </option>
-        <option value="DELETE" className="bg-gray-900 text-white">
+        <option value="DELETE" className="bg-gray-200 text-gray-700">
           DELETE
         </option>
-        <option value="PATCH" className="bg-gray-900 text-white">
+        <option value="PATCH" className="bg-gray-200 text-gray-700">
           PATCH
         </option>
       </select>

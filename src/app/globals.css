@@ -12,12 +12,12 @@
   --font-mono: var(--font-geist-mono);
 }
 
-@media (prefers-color-scheme: dark) {
+/* @media (prefers-color-scheme: dark) {
   :root {
     --background: #0a0a0a;
     --foreground: #ededed;
   }
-}
+} */
 
 body {
   background: var(--background);
@@ -25,13 +25,13 @@ body {
   font-family: Arial, Helvetica, sans-serif;
 }
 
-select {
+/* select {
   background-color: #0a0a0a;
   color: #ededed;
-}
+} */
 
 option {
   font-family: "Courier New", Courier, monospace;
-  background-color: #0a0a0a;
-  color: #ededed;
+  background-color: #ededed;
+  color: #0a0a0a;
 }
