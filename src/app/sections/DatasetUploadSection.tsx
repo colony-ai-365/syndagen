@@ -7,11 +7,11 @@ export default function DatasetUploadSection() {
   const [headers, setHeaders] = useState<string[]>([]);
   const [error, setError] = useState("");
   const [fileName, setFileName] = useState("");
-  ``;
   const [selectedColumn, setSelectedColumn] = useState<string>("");
   const [datalistName, setDatalistName] = useState("");
   const [savePreview, setSavePreview] = useState<string[]>([]);
   const [saveError, setSaveError] = useState("");
+  const [successMsg, setSuccessMsg] = useState("");
 
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     setError("");
@@ -89,12 +89,13 @@ export default function DatasetUploadSection() {
       });
       const result = await res.json();
       if (res.ok && result.success) {
-        alert(
+        setSuccessMsg(
           `Datalist '${datalistName}' saved with ${savePreview.length} entries.`
         );
         setDatalistName("");
         setSelectedColumn("");
         setSavePreview([]);
+        setTimeout(() => setSuccessMsg(""), 3500);
       } else {
         setSaveError(result.error || "Failed to save datalist.");
       }
@@ -118,6 +119,7 @@ export default function DatasetUploadSection() {
 
       {error && <div className="text-red-600 mb-2">{error}</div>}
 
+      {successMsg && <div className="text-green-600 mb-2">{successMsg}</div>}
       {csvData.length > 0 && headers.length > 0 && (
         <form
           className="w-full max-w-md mb-6 p-4 border rounded bg-gray-50 flex flex-col gap-4"

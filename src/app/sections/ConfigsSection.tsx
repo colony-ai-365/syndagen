@@ -1,6 +1,7 @@
 // ConfigsSection.tsx
 import Link from "next/link";
 import React, { useEffect, useState } from "react";
+import ConfirmDialog from "../components/ConfirmDialog";
 
 export default function ConfigsSection() {
   const [configs, setConfigs] = useState<any[]>([]);
@@ -8,6 +9,8 @@ export default function ConfigsSection() {
   const [creating, setCreating] = useState(false);
   const [newName, setNewName] = useState("");
   const [error, setError] = useState("");
+  const [confirmOpen, setConfirmOpen] = useState(false);
+  const [pendingDeleteId, setPendingDeleteId] = useState<number | null>(null);
 
   // Fetch configs
   const fetchConfigs = () => {
@@ -48,14 +51,20 @@ export default function ConfigsSection() {
     setCreating(false);
   };
 
-  // Handle delete request
-  const handleDelete = async (id: number) => {
-    if (!window.confirm("Are you sure you want to delete this request?"))
-      return;
+  // Show confirmation dialog before delete
+  const requestDelete = (id: number) => {
+    setPendingDeleteId(id);
+    setConfirmOpen(true);
+  };
+
+  // Handle confirmed delete
+  const handleDeleteConfirmed = async () => {
+    if (pendingDeleteId == null) return;
+    setConfirmOpen(false);
     setLoading(true);
     setError("");
     try {
-      const res = await fetch(`/api/request-config/${id}`, {
+      const res = await fetch(`/api/request-config/${pendingDeleteId}`, {
         method: "DELETE",
       });
       const data = await res.json();
@@ -69,6 +78,7 @@ export default function ConfigsSection() {
       setError("Failed to delete request");
       setLoading(false);
     }
+    setPendingDeleteId(null);
   };
 
   return (
@@ -123,7 +133,7 @@ export default function ConfigsSection() {
                 </Link>
                 <button
                   className="px-3 py-1 bg-red-600 text-white rounded"
-                  onClick={() => handleDelete(cfg.id)}
+                  onClick={() => requestDelete(cfg.id)}
                   disabled={loading}
                   title="Delete request"
                 >
@@ -134,6 +144,18 @@ export default function ConfigsSection() {
           ))}
         </ul>
       )}
+      <ConfirmDialog
+        open={confirmOpen}
+        title="Delete Request Config"
+        message="Are you sure you want to delete this request? This action cannot be undone."
+        confirmText="Delete"
+        cancelText="Cancel"
+        onConfirm={handleDeleteConfirmed}
+        onCancel={() => {
+          setConfirmOpen(false);
+          setPendingDeleteId(null);
+        }}
+      />
     </div>
   );
 }
