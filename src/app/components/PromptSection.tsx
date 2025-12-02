@@ -3,6 +3,7 @@
 import PromptField from "./PromptField";
 
 import { Field } from "../hooks/useFields";
+import { VariableValues } from "../utils/formHelpers";
 
 type PromptSectionProps = {
   fields: Field[];
@@ -13,8 +14,8 @@ type PromptSectionProps = {
   ) => void;
   variableSelections: Record<string, number>;
   setVariableSelections: (sel: Record<string, number>) => void;
-  variableValues: Record<string, string[]>;
-  setVariableValues: (vals: Record<string, string[]>) => void;
+  variableValues: VariableValues;
+  setVariableValues: (vals: VariableValues) => void;
 };
 
 export default function PromptSection({

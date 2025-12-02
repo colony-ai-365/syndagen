@@ -51,8 +51,10 @@ const ManageDatalists: React.FC = () => {
           const text = await res.text();
           throw new Error(text || `Failed to load preview (${res.status})`);
         }
-        const data: string[] = await res.json();
-        setPreviewEntries((prev) => ({ ...prev, [id]: data }));
+        const data = await res.json();
+        // API returns { entries, total, page, limit }
+        const entries = data.entries || data;
+        setPreviewEntries((prev) => ({ ...prev, [id]: entries }));
       } catch (err: any) {
         if (err.name === "AbortError") return;
         setPreviewEntries((prev) => ({
@@ -172,20 +174,27 @@ const ManageDatalists: React.FC = () => {
                 </span>
               </div>
 
-              {previewEntries[dl.id] && (
-                <ul className="mt-2 max-h-32 overflow-y-auto border rounded bg-white p-2 text-sm">
-                  {previewEntries[dl.id].slice(0, 10).map((val, idx) => (
-                    <li key={idx} className="border-b last:border-b-0 py-1">
-                      {val}
-                    </li>
-                  ))}
-                  {previewEntries[dl.id].length > 10 && (
-                    <li className="text-gray-400">
-                      ...and {previewEntries[dl.id].length - 10} more
-                    </li>
-                  )}
-                </ul>
-              )}
+              {previewEntries[dl.id] &&
+                (Array.isArray(previewEntries[dl.id]) ? (
+                  <ul className="mt-2 max-h-32 overflow-y-auto border rounded bg-white p-2 text-sm">
+                    {previewEntries[dl.id].slice(0, 10).map((val, idx) => (
+                      <li key={idx} className="border-b last:border-b-0 py-1">
+                        {val}
+                      </li>
+                    ))}
+                    {previewEntries[dl.id].length > 10 && (
+                      <li className="text-gray-400">
+                        ...and {previewEntries[dl.id].length - 10} more
+                      </li>
+                    )}
+                  </ul>
+                ) : (
+                  <div className="mt-2 text-red-600 text-sm">
+                    {typeof previewEntries[dl.id] === "string"
+                      ? previewEntries[dl.id]
+                      : previewEntries[dl.id]?.[0]}
+                  </div>
+                ))}
             </li>
           ))}
         </ul>

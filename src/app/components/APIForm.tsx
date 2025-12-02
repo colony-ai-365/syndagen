@@ -16,6 +16,13 @@ import PromptSection from "./PromptSection";
 import BodyFieldsSection from "./BodyFieldsSection";
 import ActionButtonsSection from "./ActionButtonsSection";
 
+type VariableSource = {
+  type: "manual" | "datalist";
+  values: string[];
+  datalistId?: number;
+};
+type VariableValues = Record<string, VariableSource>;
+
 type APIFormProps = {
   setResult: (val: string) => void;
   setError: (val: string) => void;
@@ -31,9 +38,7 @@ export default function APIForm({
   const [variableSelections, setVariableSelections] = useState<
     Record<string, number>
   >({});
-  const [variableValues, setVariableValues] = useState<
-    Record<string, string[]>
-  >({});
+  const [variableValues, setVariableValues] = useState<VariableValues>({});
   const [route, setRoute] = useState<string>("");
   const [method, setMethod] = useState<string>("GET");
   const [field, setField] = useState<string>("");
@@ -78,7 +83,12 @@ export default function APIForm({
 
   // Helper to get injected prompt value
   const getInjectedPrompt = () => {
-    return injectVariables(variableValues, variableSelections);
+    // Convert VariableValues to Record<string, string[]> for injection
+    const simpleValues: Record<string, string[]> = {};
+    Object.entries(variableValues).forEach(([key, src]) => {
+      simpleValues[key] = src.values;
+    });
+    return injectVariables(simpleValues, variableSelections);
   };
 
   // Save changes handler

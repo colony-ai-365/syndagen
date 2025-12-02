@@ -4,7 +4,12 @@
 import { Field } from "../hooks/useFields";
 
 export type Header = { key: string; value: string };
-export type VariableValues = Record<string, string[]>;
+export type VariableSource = {
+  type: "manual" | "datalist";
+  values: string[];
+  datalistId?: number;
+};
+export type VariableValues = Record<string, VariableSource>;
 
 export function buildConfigPayload(
   fields: Field[],

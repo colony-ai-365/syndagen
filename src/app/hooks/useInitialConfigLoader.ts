@@ -5,7 +5,7 @@ import { useEffect } from "react";
 import { Field } from "./useFields";
 
 type Header = { key: string; value: string };
-type VariableValues = Record<string, string[]>;
+import { VariableValues, VariableSource } from "../utils/formHelpers";
 
 export type InitialConfig = {
   id?: string;
@@ -129,12 +129,29 @@ export function useInitialConfigLoader({
       }
     }
 
-    // Load variables as object { var1: [val1, val2], ... }
+    // Load variables as object { var1: VariableSource, ... }
     if (initialConfig.variables) {
       try {
-        const parsedVariables = JSON.parse(initialConfig.variables);
+        const parsedVariables: VariableValues = JSON.parse(
+          initialConfig.variables
+        );
         if (parsedVariables && typeof parsedVariables === "object") {
-          setVariableValues(parsedVariables);
+          // If old format (string[]), convert to VariableSource
+          const converted: VariableValues = {};
+          Object.entries(parsedVariables).forEach(([key, val]) => {
+            if (Array.isArray(val)) {
+              converted[key] = { type: "manual", values: val };
+            } else if (
+              val &&
+              typeof val === "object" &&
+              "type" in val &&
+              "values" in val &&
+              Array.isArray((val as any).values)
+            ) {
+              converted[key] = val as VariableSource;
+            }
+          });
+          setVariableValues(converted);
         }
       } catch {
         setVariableValues({});

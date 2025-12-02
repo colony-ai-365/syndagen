@@ -1,3 +1,25 @@
+// Paginated fetch for datalist entries
+export function getDatalistEntriesPaginated(
+  datalistId: number,
+  page: number,
+  limit: number
+) {
+  const offset = (page - 1) * limit;
+  const entriesStmt = db.prepare(
+    `SELECT value FROM datalist_entries WHERE datalist_id = ? LIMIT ? OFFSET ?`
+  );
+  const countStmt = db.prepare(
+    `SELECT COUNT(*) as total FROM datalist_entries WHERE datalist_id = ?`
+  );
+  const rows = entriesStmt.all(datalistId, limit, offset) as Array<{
+    value: string;
+  }>;
+  const totalRow = countStmt.get(datalistId) as { total: number };
+  return {
+    entries: rows.map((row) => row.value),
+    total: totalRow.total,
+  };
+}
 import Database from "better-sqlite3";
 import path from "path";
 
