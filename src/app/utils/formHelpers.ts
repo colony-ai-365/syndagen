@@ -6,7 +6,7 @@ import { Field } from "../hooks/useFields";
 export type Header = { key: string; value: string };
 export type VariableSource = {
   type: "manual" | "datalist";
-  values: string[];
+  values?: string[];
   datalistId?: number;
 };
 export type VariableValues = Record<string, VariableSource>;
@@ -58,6 +58,21 @@ export function buildConfigPayload(
       .filter(Boolean);
   }
 
+  // Strip values array from datalist variables before saving to DB
+  const variablesForDB: VariableValues = {};
+  Object.entries(variableValues).forEach(([key, source]) => {
+    if (source.type === "datalist") {
+      // Only save type and datalistId for datalist variables
+      variablesForDB[key] = {
+        type: "datalist",
+        datalistId: source.datalistId,
+      };
+    } else {
+      // Save everything for manual variables
+      variablesForDB[key] = source;
+    }
+  });
+
   return {
     name: requestName,
     route,
@@ -65,7 +80,7 @@ export function buildConfigPayload(
     field,
     prompt: promptObj,
     additional_fields: additionalFieldsObj,
-    variables: variableValues,
+    variables: variablesForDB,
     headers: headersObject,
     schema,
   };

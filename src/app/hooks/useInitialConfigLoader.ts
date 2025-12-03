@@ -141,14 +141,22 @@ export function useInitialConfigLoader({
           Object.entries(parsedVariables).forEach(([key, val]) => {
             if (Array.isArray(val)) {
               converted[key] = { type: "manual", values: val };
-            } else if (
-              val &&
-              typeof val === "object" &&
-              "type" in val &&
-              "values" in val &&
-              Array.isArray((val as any).values)
-            ) {
-              converted[key] = val as VariableSource;
+            } else if (val && typeof val === "object" && "type" in val) {
+              const source = val as VariableSource;
+              if (source.type === "datalist") {
+                // For datalist variables, set empty values array on load
+                converted[key] = {
+                  type: "datalist",
+                  datalistId: source.datalistId,
+                  values: [],
+                };
+              } else if (
+                source.type === "manual" &&
+                Array.isArray(source.values)
+              ) {
+                // For manual variables, keep all values
+                converted[key] = source;
+              }
             }
           });
           setVariableValues(converted);

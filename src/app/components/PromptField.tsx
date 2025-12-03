@@ -61,6 +61,35 @@ export default function PromptField({
     }
   };
 
+  // Clean up deleted variables from state when they are removed from prompt
+  useEffect(() => {
+    if (!setVariableValues || !setVariableSelections || !variableValues) return;
+
+    const currentVarSet = new Set(variables);
+    const storedVars = Object.keys(variableValues);
+    const deletedVars = storedVars.filter((v) => !currentVarSet.has(v));
+
+    if (deletedVars.length > 0) {
+      // Remove deleted variables from variableValues
+      const updatedValues = { ...variableValues };
+      deletedVars.forEach((v) => delete updatedValues[v]);
+      setVariableValues(updatedValues);
+
+      // Remove deleted variables from variableSelections
+      if (variableSelections) {
+        const updatedSelections = { ...variableSelections };
+        deletedVars.forEach((v) => delete updatedSelections[v]);
+        setVariableSelections(updatedSelections);
+      }
+    }
+  }, [
+    variables,
+    variableValues,
+    variableSelections,
+    setVariableValues,
+    setVariableSelections,
+  ]);
+
   return (
     <div className="flex flex-col gap-2 mb-4 p-4 border rounded bg-gray-50">
       <label className="font-bold text-lg mb-2">Prompt</label>
@@ -153,8 +182,10 @@ export default function PromptField({
                     <input
                       type="text"
                       value={
-                        variableValues && variableValues[v]
-                          ? variableValues[v].values.join(",")
+                        variableValues &&
+                        variableValues[v] &&
+                        variableValues[v].values
+                          ? variableValues[v].values!.join(",")
                           : ""
                       }
                       onChange={(e) => {
@@ -182,18 +213,15 @@ export default function PromptField({
                     <>
                       <select
                         value={datalistId ?? ""}
-                        onChange={async (e) => {
+                        onChange={(e) => {
                           const id = Number(e.target.value);
-                          setLoadingEntries((le) => ({ ...le, [v]: true }));
-                          const entries = await fetchDatalistEntries(id);
-                          setLoadingEntries((le) => ({ ...le, [v]: false }));
                           if (setVariableValues && variableValues) {
                             setVariableValues({
                               ...variableValues,
                               [v]: {
                                 type: "datalist",
                                 datalistId: id,
-                                values: entries,
+                                values: [],
                               },
                             });
                           }
@@ -232,11 +260,22 @@ export default function PromptField({
                               : undefined
                           }
                           onSelect={(entry, idx) => {
-                            // Set selection index
+                            // Store only the selected value in a single-item array
+                            if (setVariableValues && variableValues) {
+                              setVariableValues({
+                                ...variableValues,
+                                [v]: {
+                                  type: "datalist",
+                                  datalistId: datalistId,
+                                  values: [entry],
+                                },
+                              });
+                            }
+                            // Always use index 0 since values array has only one item
                             if (setVariableSelections) {
                               setVariableSelections({
                                 ...(variableSelections || {}),
-                                [v]: idx,
+                                [v]: 0,
                               });
                             }
                             setModalVar(null);
@@ -274,7 +313,8 @@ export default function PromptField({
               const selectedValue =
                 variableValues &&
                 variableValues[v] &&
-                variableValues[v].values[selectedIdx];
+                variableValues[v].values &&
+                variableValues[v].values![selectedIdx];
               return (
                 <div key={v} className="flex gap-2 items-center">
                   <span className="font-mono text-orange-600">{v}</span>
@@ -288,9 +328,13 @@ export default function PromptField({
                       >
                         Select value...
                       </button>
-                      {selectedValue && (
+                      {selectedValue ? (
                         <span className="ml-2 text-green-700">
                           Selected: {selectedValue}
+                        </span>
+                      ) : (
+                        <span className="ml-2 text-gray-500 text-sm">
+                          No value selected
                         </span>
                       )}
                       {modalVar === v && datalistId && (
@@ -300,10 +344,22 @@ export default function PromptField({
                           onClose={() => setModalVar(null)}
                           selectedIndex={selectedIdx}
                           onSelect={(entry, idx) => {
+                            // Store only the selected value in a single-item array
+                            if (setVariableValues && variableValues) {
+                              setVariableValues({
+                                ...variableValues,
+                                [v]: {
+                                  type: "datalist",
+                                  datalistId: datalistId,
+                                  values: [entry],
+                                },
+                              });
+                            }
+                            // Always use index 0 since values array has only one item
                             if (setVariableSelections) {
                               setVariableSelections({
                                 ...(variableSelections || {}),
-                                [v]: idx,
+                                [v]: 0,
                               });
                             }
                             setModalVar(null);
@@ -326,8 +382,10 @@ export default function PromptField({
                       }}
                       className="border px-2 py-1 rounded w-2/3"
                     >
-                      {(variableValues && variableValues[v]
-                        ? variableValues[v].values
+                      {(variableValues &&
+                      variableValues[v] &&
+                      variableValues[v].values
+                        ? variableValues[v].values!
                         : [""]
                       ).map((val: string, idx: number) => (
                         <option key={idx} value={idx}>
