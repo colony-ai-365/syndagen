@@ -9,19 +9,16 @@ import {
 } from "../hooks/useInitialConfigLoader";
 import { useSaveConfig } from "../hooks/useSaveConfig";
 import { useFormSubmit } from "../hooks/useFormSubmit";
-import { buildConfigPayload, buildBody } from "../utils/formHelpers";
+import {
+  buildConfigPayload,
+  buildBody,
+  VariableValues,
+} from "../utils/formHelpers";
 import RequestMetaSection from "./RequestMetaSection";
 import HeadersSection from "./HeadersSection";
 import PromptSection from "./PromptSection";
 import BodyFieldsSection from "./BodyFieldsSection";
 import ActionButtonsSection from "./ActionButtonsSection";
-
-type VariableSource = {
-  type: "manual" | "datalist";
-  values: string[];
-  datalistId?: number;
-};
-type VariableValues = Record<string, VariableSource>;
 
 type APIFormProps = {
   setResult: (val: string) => void;
@@ -78,7 +75,7 @@ export default function APIForm({
     setSchemaInput,
     setFields,
     setHeaders,
-    setVariableValues,
+    setVariableValues: (values) => setVariableValues(values),
   });
 
   // Helper to get injected prompt value
@@ -86,7 +83,7 @@ export default function APIForm({
     // Convert VariableValues to Record<string, string[]> for injection
     const simpleValues: Record<string, string[]> = {};
     Object.entries(variableValues).forEach(([key, src]) => {
-      simpleValues[key] = src.values;
+      simpleValues[key] = src.values || [];
     });
     return injectVariables(simpleValues, variableSelections);
   };
@@ -144,7 +141,7 @@ export default function APIForm({
             variableSelections={variableSelections}
             setVariableSelections={setVariableSelections}
             variableValues={variableValues}
-            setVariableValues={setVariableValues}
+            setVariableValues={(vals) => setVariableValues(vals)}
           />
           <BodyFieldsSection
             fields={fields}

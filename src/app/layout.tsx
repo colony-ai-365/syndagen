@@ -1,5 +1,6 @@
 // layout.tsx
 // Root layout component for the Syndagen app. Sets up fonts, metadata, and global structure.
+
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
@@ -29,8 +30,15 @@ export default function RootLayout({
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >
-        {children}
+        <div className="min-h-screen flex font-sans">
+          {/* Sidebar will be rendered for all routes */}
+          <div style={{ width: "16rem" }}>
+            <Sidebar />
+          </div>
+          <main className="flex-1 p-8 flex flex-col gap-8">{children}</main>
+        </div>
       </body>
     </html>
   );
 }
+import Sidebar from "./components/Sidebar";

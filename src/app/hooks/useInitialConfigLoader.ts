@@ -165,15 +165,6 @@ export function useInitialConfigLoader({
         setVariableValues({});
       }
     }
-  }, [
-    initialConfig,
-    setRequestName,
-    setRoute,
-    setMethod,
-    setField,
-    setSchemaInput,
-    setFields,
-    setHeaders,
-    setVariableValues,
-  ]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [initialConfig?.id]);
 }

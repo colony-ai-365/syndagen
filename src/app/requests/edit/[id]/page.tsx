@@ -26,7 +26,7 @@ export default function EditRequestPage() {
   }, [id]);
 
   return (
-    <div className="min-h-screen p-8 flex flex-col items-center justify-center gap-8 font-sans">
+    <div className="flex flex-col gap-8 font-sans w-full">
       <h1 className="text-2xl font-bold">Request Configuration</h1>
       {loading ? (
         <div>Loading...</div>
