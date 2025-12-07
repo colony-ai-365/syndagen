@@ -8,8 +8,7 @@ const sections = [
   { key: "configs", label: "Configs" },
   { key: "dataset-upload", label: "Dataset Upload" },
   { key: "dataset-manage", label: "Dataset Manage" },
-  { key: "analytics", label: "Analytics" },
-  { key: "settings", label: "Settings" },
+  { key: "dataset-generators", label: "Dataset Generators" },
 ];
 
 export default function Sidebar() {
