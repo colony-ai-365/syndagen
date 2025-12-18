@@ -150,7 +150,13 @@ export default function DatasetGeneratorsSection() {
                 </span>
               </span>
               <div className="flex gap-2">
-                {/* Add edit link here when edit page is ready */}
+                <Link
+                  href={`/dataset-generators/${gen.id}`}
+                  className="px-3 py-1 bg-blue-600 text-white rounded"
+                  title="Run generator"
+                >
+                  Run
+                </Link>
                 <button
                   className="px-3 py-1 bg-red-600 text-white rounded"
                   onClick={() => requestDelete(gen.id)}
