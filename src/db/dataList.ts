@@ -10,6 +10,14 @@ export function getNthDatalistEntry(
   return row?.value;
 }
 
+export function CountListEntries(datalistId: number): number {
+  const stmt = db.prepare(
+    `SELECT COUNT(*) as count FROM datalist_entries WHERE datalist_id = ?`
+  );
+  const row = stmt.get(datalistId) as { count: number };
+  return row.count;
+}
+
 // Paginated fetch for datalist entries
 export function getDatalistEntriesPaginated(
   datalistId: number,
