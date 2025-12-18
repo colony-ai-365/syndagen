@@ -4,13 +4,8 @@ import { useParams } from "next/navigation";
 import { useEffect, useState } from "react";
 
 import CollapsibleConfigPreview from "../../components/CollapsibleConfigPreview";
-import {
-  buildTestBody,
-  buildVariableValuesForCombination,
-  computeMaxCombinations,
-  getVariableLengths,
-  injectVariables,
-} from "../../utils/generatorHelpers";
+import { getVariableLengths } from "../../utils/generatorHelpers";
+import { useGeneratorRunner } from "@/app/hooks/useGeneratorRunner";
 
 type RequestConfig = {
   id?: string | number;
@@ -38,21 +33,30 @@ export default function GeneratorConfigPage() {
   const [config, setConfig] = useState<RequestConfig | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
-  const [testLoading, setTestLoading] = useState(false);
-  const [testResult, setTestResult] = useState<unknown>(null);
-  const [testError, setTestError] = useState("");
+  // test state is provided by `useGeneratorRunner` hook
   const [variableLengths, setVariableLengths] = useState<
     Record<string, number>
   >({});
   const [maxCombinations, setMaxCombinations] = useState(0);
 
-  const [runStatus, setRunStatus] = useState<
-    "idle" | "running" | "paused" | "done"
-  >("idle");
-  const [currentCombination, setCurrentCombination] = useState(0);
-  const [generatedResults, setGeneratedResults] = useState<GeneratedResult[]>(
-    []
-  );
+  const {
+    runStatus,
+    start,
+    pause,
+    restart,
+    currentCombination,
+    generatedResults,
+    maxCombinations: hookMax,
+    testLoading: hookTestLoading,
+    testResult: hookTestResult,
+    testError: hookTestError,
+    handleTestApiOnce,
+  } = useGeneratorRunner(config, variableLengths);
+
+  // keep local maxCombinations in sync with hook
+  useEffect(() => {
+    setMaxCombinations(hookMax);
+  }, [hookMax]);
 
   useEffect(() => {
     if (!id) return;
@@ -73,154 +77,15 @@ export default function GeneratorConfigPage() {
         // Fetch variable lengths after config is loaded
         getVariableLengths(data).then((lens) => {
           setVariableLengths(lens);
-          setMaxCombinations(computeMaxCombinations(lens));
         });
       })
       .catch((err) => setError(err.message))
       .finally(() => setLoading(false));
   }, [id]);
 
-  // Run loop (sequential, respects pause)
-  useEffect(() => {
-    if (!config) return;
-    if (runStatus !== "running") return;
-    if (maxCombinations <= 0) return;
+  // run loop moved into hook useGeneratorRunner
 
-    let cancelled = false;
-
-    const run = async () => {
-      // next combo to run
-      let combo = currentCombination <= 0 ? 1 : currentCombination;
-      if (combo > maxCombinations) {
-        setRunStatus("done");
-        return;
-      }
-
-      while (!cancelled && combo <= maxCombinations) {
-        // If user paused mid-loop, stop cleanly
-        if (runStatus !== "running") return;
-
-        setCurrentCombination(combo);
-
-        try {
-          const { variableValues, inputs } =
-            await buildVariableValuesForCombination(
-              config,
-              variableLengths,
-              combo
-            );
-
-          const promptObj = JSON.parse(config.prompt || "{}");
-          const promptKey = Object.keys(promptObj)[0] || "prompt";
-          const promptTemplate = promptObj[promptKey] || "";
-          const injectedPrompt = injectVariables(
-            promptTemplate,
-            variableValues
-          );
-          const body = buildTestBody(config, injectedPrompt);
-          const headers = JSON.parse(config.headers || "{}");
-          const schema = config.schema ? JSON.parse(config.schema) : undefined;
-
-          const res = await fetch("/api/test-api", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              route: config.route,
-              body,
-              method: config.method,
-              field: config.field,
-              schema,
-              headers,
-            }),
-          });
-          const data = (await res.json().catch(() => ({}))) as {
-            data?: unknown;
-            error?: string;
-          };
-
-          if (!res.ok) {
-            setGeneratedResults((prev) => [
-              ...prev,
-              {
-                combo,
-                inputs,
-                error: data.error || `Request failed (${res.status})`,
-              },
-            ]);
-          } else {
-            setGeneratedResults((prev) => [
-              ...prev,
-              { combo, inputs, output: data.data },
-            ]);
-          }
-        } catch (err: any) {
-          setGeneratedResults((prev) => [
-            ...prev,
-            {
-              combo,
-              inputs: {},
-              error: err instanceof Error ? err.message : "Failed to generate",
-            },
-          ]);
-        }
-
-        combo += 1;
-      }
-
-      if (!cancelled) {
-        setRunStatus("done");
-      }
-    };
-
-    run();
-    return () => {
-      cancelled = true;
-    };
-    // Intentionally NOT depending on currentCombination to avoid restarting loop each increment.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [runStatus, config, maxCombinations]);
-
-  async function handleTestApi() {
-    if (!config) return;
-    setTestLoading(true);
-    setTestResult(null);
-    setTestError("");
-    try {
-      const { variableValues } = await buildVariableValuesForCombination(
-        config,
-        variableLengths,
-        1
-      );
-      const promptObj = JSON.parse(config.prompt || "{}");
-      const promptKey = Object.keys(promptObj)[0] || "prompt";
-      const promptTemplate = promptObj[promptKey] || "";
-      const injectedPrompt = injectVariables(promptTemplate, variableValues);
-      const body = buildTestBody(config, injectedPrompt);
-      const headers = JSON.parse(config.headers || "{}");
-      const schema = config.schema ? JSON.parse(config.schema) : undefined;
-      const res = await fetch("/api/test-api", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          route: config.route,
-          body,
-          method: config.method,
-          field: config.field,
-          schema,
-          headers,
-        }),
-      });
-      const data = (await res.json().catch(() => ({}))) as {
-        data?: unknown;
-        error?: string;
-      };
-      if (res.ok) setTestResult(data.data);
-      else setTestError(data.error || "Validation failed");
-    } catch (err: unknown) {
-      setTestError(err instanceof Error ? err.message : "Failed to test API");
-    }
-    setTestLoading(false);
-  }
+  // test action moved to hook: `handleTestApiOnce`
 
   return (
     <div>
@@ -263,11 +128,8 @@ export default function GeneratorConfigPage() {
           <button
             onClick={() => {
               if (runStatus === "running") return;
-              if (runStatus === "done") {
-                setGeneratedResults([]);
-                setCurrentCombination(0);
-              }
-              setRunStatus("running");
+              if (runStatus === "done") restart();
+              else start();
             }}
             disabled={runStatus === "running"}
             style={{
@@ -288,7 +150,7 @@ export default function GeneratorConfigPage() {
               : "Start"}
           </button>
           <button
-            onClick={() => setRunStatus("paused")}
+            onClick={() => pause()}
             disabled={runStatus !== "running"}
             style={{
               padding: "8px 18px",
@@ -371,8 +233,8 @@ export default function GeneratorConfigPage() {
       {config && (
         <div style={{ maxWidth: 600, marginTop: 18 }}>
           <button
-            onClick={handleTestApi}
-            disabled={!!testLoading}
+            onClick={handleTestApiOnce}
+            disabled={!!hookTestLoading}
             style={{
               padding: "8px 18px",
               background: "#2563eb",
@@ -380,15 +242,15 @@ export default function GeneratorConfigPage() {
               border: "none",
               borderRadius: 4,
               fontWeight: 600,
-              cursor: testLoading ? "not-allowed" : "pointer",
+              cursor: hookTestLoading ? "not-allowed" : "pointer",
             }}
           >
-            {testLoading ? "Testing..." : "Test API"}
+            {hookTestLoading ? "Testing..." : "Test API"}
           </button>
-          {testError && (
-            <div style={{ color: "red", marginTop: 8 }}>{testError}</div>
+          {hookTestError && (
+            <div style={{ color: "red", marginTop: 8 }}>{hookTestError}</div>
           )}
-          {testResult !== null && (
+          {hookTestResult !== null && (
             <pre
               style={{
                 marginTop: 10,
@@ -397,9 +259,9 @@ export default function GeneratorConfigPage() {
                 borderRadius: 4,
               }}
             >
-              {typeof testResult === "string"
-                ? testResult
-                : JSON.stringify(testResult, null, 2)}
+              {typeof hookTestResult === "string"
+                ? hookTestResult
+                : JSON.stringify(hookTestResult, null, 2)}
             </pre>
           )}
         </div>
