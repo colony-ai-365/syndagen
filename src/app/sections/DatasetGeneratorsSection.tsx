@@ -151,7 +151,7 @@ export default function DatasetGeneratorsSection() {
               </span>
               <div className="flex gap-2">
                 <Link
-                  href={`/dataset-generators/${gen.id}`}
+                  href={`/dataset-generators/${gen.config_id}`}
                   className="px-3 py-1 bg-blue-600 text-white rounded"
                   title="Run generator"
                 >

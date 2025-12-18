@@ -1,3 +1,15 @@
+// Fetch the nth entry (1-based index) of a datalist
+export function getNthDatalistEntry(
+  datalistId: number,
+  n: number
+): string | undefined {
+  const stmt = db.prepare(
+    `SELECT value FROM datalist_entries WHERE datalist_id = ? ORDER BY id ASC LIMIT 1 OFFSET ?`
+  );
+  const row = stmt.get(datalistId, n - 1) as { value: string } | undefined;
+  return row?.value;
+}
+
 // Paginated fetch for datalist entries
 export function getDatalistEntriesPaginated(
   datalistId: number,
