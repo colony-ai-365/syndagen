@@ -1,24 +1,25 @@
+// Move to: forms/APIForm.tsx
 // APIForm.tsx
 // Main form component for building and sending API requests. Uses custom hooks for managing fields, headers, and prompt variables.
 import { useState } from "react";
-import { useFields, useHeaders } from "../hooks/useFields";
-import { usePromptVariables } from "../hooks/usePromptVariables";
+import { useFields, useHeaders } from "../../hooks/useFields";
+import { usePromptVariables } from "../../hooks/usePromptVariables";
 import {
   useInitialConfigLoader,
   InitialConfig,
-} from "../hooks/useInitialConfigLoader";
-import { useSaveConfig } from "../hooks/useSaveConfig";
-import { useFormSubmit } from "../hooks/useFormSubmit";
+} from "../../hooks/useInitialConfigLoader";
+import { useSaveConfig } from "../../hooks/useSaveConfig";
+import { useFormSubmit } from "../../hooks/useFormSubmit";
 import {
   buildConfigPayload,
   buildBody,
   VariableValues,
-} from "../utils/formHelpers";
-import RequestMetaSection from "./RequestMetaSection";
+} from "../../utils/formHelpers";
+import RequestMetaSection from "../sections/RequestMetaSection";
 import HeadersSection from "./HeadersSection";
 import PromptSection from "./PromptSection";
 import BodyFieldsSection from "./BodyFieldsSection";
-import ActionButtonsSection from "./ActionButtonsSection";
+import ActionButtonsSection from "../sections/ActionButtonsSection";
 
 type APIFormProps = {
   setResult: (val: string) => void;

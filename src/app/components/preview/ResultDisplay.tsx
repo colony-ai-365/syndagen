@@ -1,3 +1,4 @@
+// Move to: preview/ResultDisplay.tsx
 // ResultDisplay.tsx
 // Component for displaying API response results or error messages in a formatted way.
 type ResultDisplayProps = {

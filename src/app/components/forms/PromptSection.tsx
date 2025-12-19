@@ -1,9 +1,10 @@
+// Move to: forms/PromptSection.tsx
 // PromptSection.tsx
 // Handles the prompt field and variable management (uses PromptField)
 import PromptField from "./PromptField";
 
-import { Field } from "../hooks/useFields";
-import { VariableValues } from "../utils/formHelpers";
+import { Field } from "../../hooks/useFields";
+import { VariableValues } from "../../utils/formHelpers";
 
 type PromptSectionProps = {
   fields: Field[];

@@ -1,3 +1,4 @@
+// Move to: forms/PromptTextArea.tsx
 // PromptTextArea.tsx
 // Textarea component with syntax highlighting for variables
 import { useRef } from "react";

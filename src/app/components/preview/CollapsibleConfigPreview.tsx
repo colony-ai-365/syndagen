@@ -1,3 +1,4 @@
+// Move to: preview/CollapsibleConfigPreview.tsx
 "use client";
 
 import { useState } from "react";

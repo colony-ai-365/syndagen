@@ -1,3 +1,4 @@
+// Move to: dialogs/ConfirmDialog.tsx
 import React from "react";
 
 interface ConfirmDialogProps {

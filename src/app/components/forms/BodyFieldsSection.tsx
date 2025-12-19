@@ -1,8 +1,9 @@
+// Move to: forms/BodyFieldsSection.tsx
 // BodyFieldsSection.tsx
 // Manages additional body fields (uses AdditionalFields for fields after the prompt)
 import AdditionalFields from "./AdditionalFields";
 
-import { Field } from "../hooks/useFields";
+import { Field } from "../../hooks/useFields";
 
 type BodyFieldsSectionProps = {
   fields: Field[];

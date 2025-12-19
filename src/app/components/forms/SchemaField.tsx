@@ -1,3 +1,4 @@
+// Move to: forms/SchemaField.tsx
 // SchemaField.tsx
 // Component for inputting expected schema fields for API response validation.
 type SchemaFieldProps = {

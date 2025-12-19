@@ -1,7 +1,7 @@
 "use client";
 import Link from "next/link";
 import React, { useEffect, useState } from "react";
-import ConfirmDialog from "../components/ConfirmDialog";
+import ConfirmDialog from "../components/dialogs/ConfirmDialog";
 
 export default function DatasetGeneratorsSection() {
   const [generators, setGenerators] = useState<any[]>([]);

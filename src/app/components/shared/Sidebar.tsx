@@ -1,3 +1,4 @@
+// Move to: shared/Sidebar.tsx
 "use client";
 // Sidebar.tsx
 import React from "react";

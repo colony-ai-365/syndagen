@@ -3,8 +3,8 @@
 "use client";
 import { useState, useEffect } from "react";
 import { useParams } from "next/navigation";
-import APIForm from "../../../components/APIForm";
-import ResultDisplay from "../../../components/ResultDisplay";
+import APIForm from "../../../components/forms/APIForm";
+import ResultDisplay from "../../../components/preview/ResultDisplay";
 
 export default function EditRequestPage() {
   const params = useParams();

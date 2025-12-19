@@ -1,6 +1,7 @@
+// Move to: sections/RequestMetaSection.tsx
 // RequestMetaSection.tsx
 // Handles request name, method, route, field, and schema input.
-import SchemaField from "./SchemaField";
+import SchemaField from "../forms/SchemaField";
 
 type RequestMetaSectionProps = {
   requestName: string;

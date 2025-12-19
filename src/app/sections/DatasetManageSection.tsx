@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useCallback, useEffect, useState } from "react";
-import ConfirmDialog from "../components/ConfirmDialog";
+import ConfirmDialog from "../components/dialogs/ConfirmDialog";
 
 type Datalist = {
   id: number;

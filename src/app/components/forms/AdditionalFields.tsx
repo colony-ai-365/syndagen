@@ -1,3 +1,4 @@
+// Move to: forms/AdditionalFields.tsx
 // AdditionalFields.tsx
 // Reusable component for managing dynamic key-value pairs with optional type selection.
 // Used for both headers and body fields in the API form.

@@ -1,8 +1,9 @@
+// Move to: forms/VariableConfiguration.tsx
 // VariableConfiguration.tsx
 // Component for configuring variable sources and selecting values
-import { useDatalists } from "../hooks/useDatalists";
-import { VariableValues } from "../utils/formHelpers";
-import DatalistSelectModal from "./DatalistSelectModal";
+import { useDatalists } from "../../hooks/useDatalists";
+import { VariableValues } from "../../utils/formHelpers";
+import DatalistSelectModal from "../dialogs/DatalistSelectModal";
 
 type VariableConfigurationProps = {
   variables: string[];

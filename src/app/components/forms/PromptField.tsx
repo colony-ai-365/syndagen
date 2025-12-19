@@ -1,8 +1,9 @@
+// Move to: forms/PromptField.tsx
 // PromptField.tsx
 // Component for editing the prompt and managing dynamic variables. Uses usePromptVariables hook for variable detection.
-import { usePromptVariables } from "../hooks/usePromptVariables";
-import { useVariableManagement } from "../hooks/useVariableManagement";
-import { VariableValues } from "../utils/formHelpers";
+import { usePromptVariables } from "../../hooks/usePromptVariables";
+import { useVariableManagement } from "../../hooks/useVariableManagement";
+import { VariableValues } from "../../utils/formHelpers";
 import PromptTextArea from "./PromptTextArea";
 import VariableConfiguration from "./VariableConfiguration";
 

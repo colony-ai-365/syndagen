@@ -1,8 +1,9 @@
+// Move to: forms/HeadersSection.tsx
 // HeadersSection.tsx
 // Manages custom headers (uses AdditionalFields)
 import AdditionalFields from "./AdditionalFields";
 
-import { Field } from "../hooks/useFields";
+import { Field } from "../../hooks/useFields";
 
 type HeadersSectionProps = {
   headers: Field[];
