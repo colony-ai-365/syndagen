@@ -1,14 +1,17 @@
 "use client";
 
-import { useParams } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useParams, useSearchParams } from "next/navigation";
+import { useEffect, useMemo, useState } from "react";
 
 import CollapsibleConfigPreview from "../../components/preview/CollapsibleConfigPreview";
-import VariableLengthsDisplay from "../../components/dataset/VariableLengthsDisplay";
 import GeneratorControls from "../../components/dataset/GeneratorControls";
-import GeneratedResultsList from "../../components/dataset/GeneratedResultsList";
+import PersistedEntryViewer from "../../components/dataset/PersistedEntryViewer";
 import TestApiSection from "../../components/dataset/TestApiSection";
+import VariableLengthsDisplay from "../../components/dataset/VariableLengthsDisplay";
+
 import { getVariableLengths } from "../../utils/generatorHelpers";
+import { useGeneratorActions } from "@/app/hooks/useGeneratorActions";
+import { useGeneratorHydration } from "@/app/hooks/useGeneratorHydration";
 import { useGeneratorRunner } from "@/app/hooks/useGeneratorRunner";
 
 type RequestConfig = {
@@ -24,43 +27,38 @@ type RequestConfig = {
   variables?: string;
 };
 
-type GeneratedResult = {
-  combo: number;
-  inputs: Record<string, string>;
-  output?: unknown;
-  error?: string;
-};
-
 export default function GeneratorConfigPage() {
   const params = useParams();
   const id = params?.id;
+  const searchParams = useSearchParams();
+  const generatorIdParam = searchParams.get("generatorId");
+  const generatorId = generatorIdParam ? Number(generatorIdParam) : NaN;
+  const finiteGeneratorId = Number.isFinite(generatorId)
+    ? generatorId
+    : undefined;
+
   const [config, setConfig] = useState<RequestConfig | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
-  // test state is provided by `useGeneratorRunner` hook
+
   const [variableLengths, setVariableLengths] = useState<
     Record<string, number>
   >({});
   const [maxCombinations, setMaxCombinations] = useState(0);
+  const [gap, setGap] = useState(1);
 
   const {
-    runStatus,
-    start,
-    pause,
-    restart,
-    currentCombination,
-    generatedResults,
-    maxCombinations: hookMax,
-    testLoading: hookTestLoading,
-    testResult: hookTestResult,
-    testError: hookTestError,
-    handleTestApiOnce,
-  } = useGeneratorRunner(config, variableLengths);
+    generator,
+    setGenerator,
+    hydratedGap,
+    savedCount,
+    setSavedCount,
+    error: hydrateError,
+  } = useGeneratorHydration(finiteGeneratorId);
 
-  // keep local maxCombinations in sync with hook
   useEffect(() => {
-    setMaxCombinations(hookMax);
-  }, [hookMax]);
+    if (typeof hydratedGap === "number" && hydratedGap > 0) setGap(hydratedGap);
+  }, [hydratedGap]);
 
   useEffect(() => {
     if (!id) return;
@@ -78,26 +76,86 @@ export default function GeneratorConfigPage() {
       })
       .then((data) => {
         setConfig(data);
-        // Fetch variable lengths after config is loaded
-        getVariableLengths(data).then((lens) => {
-          setVariableLengths(lens);
-        });
+        void getVariableLengths(data).then(setVariableLengths);
       })
       .catch((err) => setError(err.message))
       .finally(() => setLoading(false));
   }, [id]);
 
-  // run loop moved into hook useGeneratorRunner
+  const selectedNumCombinations = useMemo(() => {
+    return maxCombinations > 0 && gap > 0
+      ? Math.floor((maxCombinations - 1) / gap) + 1
+      : 0;
+  }, [gap, maxCombinations]);
 
-  // test action moved to hook: `handleTestApiOnce`
+  const runner = useGeneratorRunner(config, variableLengths, gap, {
+    generatorId: finiteGeneratorId,
+    initialPersistedCount: savedCount,
+    onEntryPersisted: ({ index }) => setSavedCount(index + 1),
+  });
+
+  useEffect(
+    () => setMaxCombinations(runner.maxCombinations),
+    [runner.maxCombinations]
+  );
+
+  const actions = useGeneratorActions({
+    generatorId: finiteGeneratorId,
+    generator,
+    gap,
+    savedCount,
+    selectedNumCombinations,
+    setGenerator: (g) => setGenerator(g),
+    startRun: runner.start,
+  });
+
+  const effectiveRunStatus =
+    generator?.status === "started" &&
+    (runner.runStatus === "idle" || runner.runStatus === "done") &&
+    savedCount < selectedNumCombinations
+      ? "paused"
+      : runner.runStatus;
 
   return (
     <div>
-      <div>Generator Config Page: {id}</div>
+      <div>Generator Config Page: {String(id ?? "")}</div>
       {loading && <div>Loading config...</div>}
-      {error && <div style={{ color: "red" }}>Error: {error}</div>}
+      {(error || hydrateError) && (
+        <div style={{ color: "red" }}>Error: {error || hydrateError}</div>
+      )}
+
       {config && <CollapsibleConfigPreview config={config} />}
-      {/* Variable lengths display */}
+
+      {config && generator && (
+        <div style={{ maxWidth: 600, margin: "18px 0" }}>
+          <label htmlFor="gap-slider" style={{ fontWeight: 600 }}>
+            Gap: <span style={{ color: "#ea580c" }}>{gap}</span>
+          </label>
+          <input
+            id="gap-slider"
+            type="range"
+            min={1}
+            max={Math.max(1, maxCombinations)}
+            value={gap}
+            onChange={(e) => setGap(Number(e.target.value))}
+            disabled={generator.status === "started"}
+            style={{ width: "100%", marginTop: 6 }}
+          />
+          <div style={{ marginTop: 8 }}>
+            <b>Selected combinations:</b> {selectedNumCombinations}{" "}
+            <span style={{ color: "#888" }}>(max: {maxCombinations})</span>
+          </div>
+          <div style={{ marginTop: 6, color: "#374151" }}>
+            <b>Generated:</b> {savedCount} / {selectedNumCombinations}
+          </div>
+          {generator.status === "started" && (
+            <div style={{ marginTop: 6, color: "#6b7280" }}>
+              Gap is locked (generator started).
+            </div>
+          )}
+        </div>
+      )}
+
       {config && (
         <VariableLengthsDisplay
           variableLengths={variableLengths}
@@ -105,27 +163,35 @@ export default function GeneratorConfigPage() {
         />
       )}
 
-      {/* Generator controls */}
-      {config && (
+      {config && generator && (
         <GeneratorControls
-          runStatus={runStatus}
-          start={start}
-          pause={pause}
-          restart={restart}
-          currentCombination={currentCombination}
+          runStatus={effectiveRunStatus}
+          start={actions.startOrResume}
+          pause={runner.pause}
+          currentCombination={runner.currentCombination}
           maxCombinations={maxCombinations}
         />
       )}
 
-      {/* Generated results list */}
-      <GeneratedResultsList generatedResults={generatedResults} />
-      {/* Test API button and result */}
+      {runner.persistError && (
+        <div style={{ color: "#b91c1c", marginTop: 10 }}>
+          Persist error: {runner.persistError}
+        </div>
+      )}
+
+      <PersistedEntryViewer
+        generatorId={finiteGeneratorId}
+        runStatus={effectiveRunStatus}
+        persistedCount={runner.persistedCount}
+        onHydrateCount={(total) => setSavedCount(total)}
+      />
+
       {config && (
         <TestApiSection
-          handleTestApiOnce={handleTestApiOnce}
-          testLoading={!!hookTestLoading}
-          testResult={hookTestResult}
-          testError={hookTestError || ""}
+          handleTestApiOnce={runner.handleTestApiOnce}
+          testLoading={!!runner.testLoading}
+          testResult={runner.testResult}
+          testError={runner.testError || ""}
         />
       )}
     </div>

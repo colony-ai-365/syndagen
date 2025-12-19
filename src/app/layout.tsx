@@ -41,4 +41,4 @@ export default function RootLayout({
     </html>
   );
 }
-import Sidebar from "./components/Sidebar";
+import Sidebar from "./components/shared/Sidebar";

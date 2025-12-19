@@ -1,4 +1,3 @@
-// Move to: dataset/VariableLengthsDisplay.tsx
 import React from "react";
 
 type VariableLengthsDisplayProps = {
@@ -10,7 +9,7 @@ export default function VariableLengthsDisplay({
   variableLengths,
   maxCombinations,
 }: VariableLengthsDisplayProps) {
-  if (Object.keys(variableLengths).length === 0) return null; // Move this file to dataset/
+  if (Object.keys(variableLengths).length === 0) return null;
   return (
     <div
       style={{

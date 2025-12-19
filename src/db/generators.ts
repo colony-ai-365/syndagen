@@ -19,7 +19,7 @@ CREATE TABLE IF NOT EXISTS generated_entries (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   generator_id INTEGER NOT NULL,
   inputs TEXT NOT NULL,
-  output TEXT,
+  output TEXT NOT NULL,
   FOREIGN KEY (generator_id) REFERENCES generators(id) ON DELETE CASCADE
 );
 `);
@@ -48,6 +48,32 @@ export function getGeneratedEntries(generator_id: number) {
     ...row,
     inputs: JSON.parse(row.inputs),
   }));
+}
+
+export function countGeneratedEntries(generator_id: number): number {
+  const stmt = db.prepare(
+    `SELECT COUNT(*) as cnt FROM generated_entries WHERE generator_id = ?`
+  );
+  const row = stmt.get(generator_id) as { cnt: number } | undefined;
+  return row?.cnt ?? 0;
+}
+
+export function getLatestGeneratedEntry(generator_id: number) {
+  const stmt = db.prepare(
+    `SELECT * FROM generated_entries WHERE generator_id = ? ORDER BY id DESC LIMIT 1`
+  );
+  const row = stmt.get(generator_id) as any;
+  if (!row) return null;
+  return { ...row, inputs: JSON.parse(row.inputs) };
+}
+
+export function getGeneratedEntryByIndex(generator_id: number, index: number) {
+  const stmt = db.prepare(
+    `SELECT * FROM generated_entries WHERE generator_id = ? ORDER BY id ASC LIMIT 1 OFFSET ?`
+  );
+  const row = stmt.get(generator_id, index) as any;
+  if (!row) return null;
+  return { ...row, inputs: JSON.parse(row.inputs) };
 }
 
 export function deleteGeneratedEntries(generator_id: number) {

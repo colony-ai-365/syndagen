@@ -28,23 +28,42 @@ export type GeneratedResult = {
   error?: string;
 };
 
+type PersistedEntryInfo = {
+  entryId: number;
+  index: number;
+  combo: number;
+};
+
 export function useGeneratorRunner(
   config: RequestConfig | null,
-  variableLengths: Record<string, number>
+  variableLengths: Record<string, number>,
+  gap: number = 1,
+  opts?: {
+    generatorId?: number;
+    initialPersistedCount?: number;
+    onEntryPersisted?: (info: PersistedEntryInfo) => void;
+    onPersistError?: (message: string) => void;
+  }
 ) {
   const [runStatus, setRunStatus] = useState<
     "idle" | "running" | "paused" | "done"
   >("idle");
   const [currentCombination, setCurrentCombination] = useState<number>(0);
-  const [generatedResults, setGeneratedResults] = useState<GeneratedResult[]>(
-    []
+
+  const [persistedCount, setPersistedCount] = useState(
+    opts?.initialPersistedCount ?? 0
   );
+  const [persistError, setPersistError] = useState<string>("");
 
   const [testLoading, setTestLoading] = useState(false);
   const [testResult, setTestResult] = useState<unknown | null>(null);
   const [testError, setTestError] = useState("");
 
   const maxCombinations = computeMaxCombinations(variableLengths);
+  const selectedNumCombinations =
+    maxCombinations > 0 && gap > 0
+      ? Math.floor((maxCombinations - 1) / gap) + 1
+      : 0;
 
   // refs for stable control across async loop
   const cancelledRef = useRef(false);
@@ -59,13 +78,23 @@ export function useGeneratorRunner(
     cancelledRef.current = false;
 
     const run = async () => {
-      let combo = currentCombination <= 0 ? 1 : currentCombination;
+      const safeGap = Math.max(1, Number.isFinite(gap) ? gap : 1);
+      // If we have persisted entries but currentCombination isn't set, resume from next
+      // combo for the selected gap: 1, 1+gap, 1+2gap, ...
+      let combo =
+        currentCombination > 0
+          ? currentCombination
+          : Math.max(1, 1 + persistedCount * safeGap);
       if (combo > maxCombinations) {
         setRunStatus("done");
         return;
       }
 
-      while (!cancelledRef.current && combo <= maxCombinations) {
+      while (
+        !cancelledRef.current &&
+        combo <= maxCombinations &&
+        persistedCount < selectedNumCombinations
+      ) {
         if (runStatusRef.current !== "running") return;
 
         setCurrentCombination(combo);
@@ -106,33 +135,117 @@ export function useGeneratorRunner(
             error?: string;
           };
 
-          if (!res.ok) {
-            setGeneratedResults((prev) => [
-              ...prev,
-              {
+          const result: GeneratedResult = !res.ok
+            ? {
                 combo,
                 inputs,
                 error: data.error || `Request failed (${res.status})`,
-              },
-            ]);
-          } else {
-            setGeneratedResults((prev) => [
-              ...prev,
-              { combo, inputs, output: data.data },
-            ]);
+              }
+            : { combo, inputs, output: data.data };
+
+          // Persist to backend if generatorId is provided
+          if (opts?.generatorId) {
+            try {
+              setPersistError("");
+              const persistRes = await fetch(
+                `/api/generator/${opts.generatorId}/entry`,
+                {
+                  method: "POST",
+                  headers: { "Content-Type": "application/json" },
+                  body: JSON.stringify({
+                    inputs: result.inputs,
+                    output:
+                      typeof result.output !== "undefined"
+                        ? result.output
+                        : { error: result.error },
+                    combo: result.combo,
+                    error: result.error,
+                  }),
+                }
+              );
+              const persistData = (await persistRes
+                .json()
+                .catch(() => ({}))) as
+                | { id?: number; success?: boolean; error?: string }
+                | any;
+              if (!persistRes.ok || !persistData?.id) {
+                const msg =
+                  persistData?.error ||
+                  `Failed to persist entry (${persistRes.status})`;
+                setPersistError(msg);
+                opts?.onPersistError?.(msg);
+              } else {
+                setPersistedCount((c) => {
+                  const next = c + 1;
+                  opts?.onEntryPersisted?.({
+                    entryId: Number(persistData.id),
+                    index: next - 1,
+                    combo: result.combo,
+                  });
+                  return next;
+                });
+              }
+            } catch (e: unknown) {
+              const msg =
+                e instanceof Error ? e.message : "Failed to persist entry";
+              setPersistError(msg);
+              opts?.onPersistError?.(msg);
+            }
           }
         } catch (err: unknown) {
-          setGeneratedResults((prev) => [
-            ...prev,
-            {
-              combo,
-              inputs: {},
-              error: err instanceof Error ? err.message : "Failed to generate",
-            },
-          ]);
+          const result: GeneratedResult = {
+            combo,
+            inputs: {},
+            error: err instanceof Error ? err.message : "Failed to generate",
+          };
+          if (opts?.generatorId) {
+            try {
+              setPersistError("");
+              const persistRes = await fetch(
+                `/api/generator/${opts.generatorId}/entry`,
+                {
+                  method: "POST",
+                  headers: { "Content-Type": "application/json" },
+                  body: JSON.stringify({
+                    inputs: result.inputs,
+                    output: { error: result.error },
+                    combo: result.combo,
+                    error: result.error,
+                  }),
+                }
+              );
+              const persistData = (await persistRes
+                .json()
+                .catch(() => ({}))) as
+                | { id?: number; success?: boolean; error?: string }
+                | any;
+              if (!persistRes.ok || !persistData?.id) {
+                const msg =
+                  persistData?.error ||
+                  `Failed to persist entry (${persistRes.status})`;
+                setPersistError(msg);
+                opts?.onPersistError?.(msg);
+              } else {
+                setPersistedCount((c) => {
+                  const next = c + 1;
+                  opts?.onEntryPersisted?.({
+                    entryId: Number(persistData.id),
+                    index: next - 1,
+                    combo: result.combo,
+                  });
+                  return next;
+                });
+              }
+            } catch (e: unknown) {
+              const msg =
+                e instanceof Error ? e.message : "Failed to persist entry";
+              setPersistError(msg);
+              opts?.onPersistError?.(msg);
+            }
+          }
         }
 
-        combo += 1;
+        combo += safeGap;
       }
 
       if (!cancelledRef.current) setRunStatus("done");
@@ -144,13 +257,23 @@ export function useGeneratorRunner(
     };
     // intentionally limited deps to control re-entry
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [runStatus, config, maxCombinations]);
+  }, [runStatus, config, maxCombinations, gap]);
+
+  // Allow caller to hydrate persistedCount after mount
+  useEffect(() => {
+    if (typeof opts?.initialPersistedCount === "number") {
+      setPersistedCount(opts.initialPersistedCount);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [opts?.initialPersistedCount]);
 
   function start() {
     if (runStatus === "running") return;
     if (runStatus === "done") {
-      setGeneratedResults([]);
       setCurrentCombination(0);
+      // If caller hydrated persistedCount, preserve it for resume semantics
+      // (restart should be used to reset).
+      setPersistError("");
     }
     setRunStatus("running");
   }
@@ -160,8 +283,9 @@ export function useGeneratorRunner(
   }
 
   function restart() {
-    setGeneratedResults([]);
     setCurrentCombination(0);
+    setPersistedCount(0);
+    setPersistError("");
     setRunStatus("running");
   }
 
@@ -214,7 +338,8 @@ export function useGeneratorRunner(
     pause,
     restart,
     currentCombination,
-    generatedResults,
+    persistedCount,
+    persistError,
     maxCombinations,
     testLoading,
     testResult,

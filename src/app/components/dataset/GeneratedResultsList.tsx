@@ -1,4 +1,3 @@
-// Move to: dataset/GeneratedResultsList.tsx
 import React from "react";
 
 type GeneratedResult = {
@@ -20,9 +19,9 @@ export default function GeneratedResultsList({
     <div style={{ maxWidth: 900, marginTop: 18 }}>
       <h3 style={{ fontWeight: 700, marginBottom: 8 }}>Generated Results</h3>
       <ul style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-        {generatedResults.map((r) => (
+        {generatedResults.map((r, i) => (
           <li
-            key={r.combo}
+            key={i}
             style={{
               border: "1px solid #e5e7eb",
               borderRadius: 6,
