@@ -16,6 +16,9 @@ const ManageDatalists: React.FC = () => {
   const [previewEntries, setPreviewEntries] = useState<
     Record<number, string[]>
   >({});
+  const [previewTotals, setPreviewTotals] = useState<Record<number, number>>(
+    {}
+  );
   const [loadingPreviewIds, setLoadingPreviewIds] = useState<
     Record<number, boolean>
   >({});
@@ -57,6 +60,9 @@ const ManageDatalists: React.FC = () => {
         // API returns { entries, total, page, limit }
         const entries = data.entries || data;
         setPreviewEntries((prev) => ({ ...prev, [id]: entries }));
+        if (typeof data.total === "number") {
+          setPreviewTotals((prev) => ({ ...prev, [id]: data.total }));
+        }
       } catch (err: any) {
         if (err.name === "AbortError") return;
         setPreviewEntries((prev) => ({
@@ -109,6 +115,11 @@ const ManageDatalists: React.FC = () => {
         // refresh list
         fetchDatalists();
         setPreviewEntries((prev) => {
+          const copy = { ...prev };
+          delete copy[pendingDeleteId];
+          return copy;
+        });
+        setPreviewTotals((prev) => {
           const copy = { ...prev };
           delete copy[pendingDeleteId];
           return copy;
@@ -170,7 +181,9 @@ const ManageDatalists: React.FC = () => {
                     : "Preview entries"}
                 </button>
                 <span className="text-xs text-gray-500">
-                  {previewEntries[dl.id]?.length
+                  {typeof previewTotals[dl.id] === "number"
+                    ? `${previewTotals[dl.id]} entries`
+                    : previewEntries[dl.id]?.length
                     ? `${previewEntries[dl.id].length} entries`
                     : null}
                 </span>

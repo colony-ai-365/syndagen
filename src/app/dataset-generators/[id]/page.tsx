@@ -110,11 +110,20 @@ export default function GeneratorConfigPage() {
   });
 
   const effectiveRunStatus =
-    generator?.status === "started" &&
-    (runner.runStatus === "idle" || runner.runStatus === "done") &&
-    savedCount < selectedNumCombinations
+    // If we've already persisted all selected combinations, treat as done so Start is hidden.
+    runner.persistedCount >= selectedNumCombinations &&
+    selectedNumCombinations > 0
+      ? "done"
+      : generator?.status === "started" &&
+        (runner.runStatus === "idle" || runner.runStatus === "done") &&
+        savedCount < selectedNumCombinations
       ? "paused"
       : runner.runStatus;
+
+  // Determine id to use for export: prefer search param, fall back to hydrated generator id
+  const exportId = Number.isFinite(finiteGeneratorId)
+    ? finiteGeneratorId
+    : (generator?.id as number | undefined);
 
   return (
     <div>
@@ -185,7 +194,42 @@ export default function GeneratorConfigPage() {
         persistedCount={runner.persistedCount}
         onHydrateCount={(total) => setSavedCount(total)}
       />
-
+      <div style={{ marginTop: 12 }}>
+        <button
+          className="inline-flex items-center px-3 py-1.5 bg-orange-600 text-white rounded-md hover:bg-orange-700 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
+          disabled={typeof exportId !== "number" || !Number.isFinite(exportId)}
+          onClick={async () => {
+            if (typeof exportId !== "number" || !Number.isFinite(exportId))
+              return;
+            try {
+              const res = await fetch(`/api/generator/${exportId}/export`);
+              if (!res.ok) {
+                const err = await res.json().catch(() => ({}));
+                throw new Error(err.error || `Export failed (${res.status})`);
+              }
+              const blob = await res.blob();
+              const url = URL.createObjectURL(blob);
+              const a = document.createElement("a");
+              a.href = url;
+              a.download = `generator-${exportId}-entries.csv`;
+              document.body.appendChild(a);
+              a.click();
+              a.remove();
+              URL.revokeObjectURL(url);
+            } catch (e: unknown) {
+              console.error(e);
+              alert(e instanceof Error ? e.message : "Failed to export CSV");
+            }
+          }}
+        >
+          Export CSV
+        </button>
+        {typeof exportId !== "number" || !Number.isFinite(exportId) ? (
+          <span style={{ marginLeft: 8, color: "#6b7280" }}>
+            (waiting for generator id)
+          </span>
+        ) : null}
+      </div>
       {config && (
         <TestApiSection
           handleTestApiOnce={runner.handleTestApiOnce}
