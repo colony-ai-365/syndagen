@@ -1,11 +1,10 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import {
-  buildTestBody,
-  buildVariableValuesForCombination,
   computeMaxCombinations,
-  injectVariables,
+  generateResultForCombo,
+  persistResult,
 } from "@/app/utils/generatorHelpers";
 
 type RequestConfig = {
@@ -65,10 +64,38 @@ export function useGeneratorRunner(
       ? Math.floor((maxCombinations - 1) / gap) + 1
       : 0;
 
-  // refs for stable control across async loop
   const cancelledRef = useRef(false);
   const runStatusRef = useRef(runStatus);
   runStatusRef.current = runStatus;
+
+  const persistedCountRef = useRef(persistedCount);
+  useEffect(() => {
+    persistedCountRef.current = persistedCount;
+  }, [persistedCount]);
+
+  const persistGeneratedResult = useCallback(
+    async (result: GeneratedResult) => {
+      if (!opts?.generatorId) return;
+      try {
+        setPersistError("");
+        const { id } = await persistResult(opts.generatorId, result);
+        setPersistedCount((c) => {
+          const next = c + 1;
+          opts?.onEntryPersisted?.({
+            entryId: id,
+            index: next - 1,
+            combo: result.combo,
+          });
+          return next;
+        });
+      } catch (e: unknown) {
+        const msg = e instanceof Error ? e.message : "Failed to persist entry";
+        setPersistError(msg);
+        opts?.onPersistError?.(msg);
+      }
+    },
+    [opts?.generatorId, opts?.onEntryPersisted, opts?.onPersistError]
+  );
 
   useEffect(() => {
     if (!config) return;
@@ -93,156 +120,26 @@ export function useGeneratorRunner(
       while (
         !cancelledRef.current &&
         combo <= maxCombinations &&
-        persistedCount < selectedNumCombinations
+        persistedCountRef.current < selectedNumCombinations
       ) {
         if (runStatusRef.current !== "running") return;
 
         setCurrentCombination(combo);
 
         try {
-          const { variableValues, inputs } =
-            await buildVariableValuesForCombination(
-              config,
-              variableLengths,
-              combo
-            );
-
-          const promptObj = JSON.parse(config.prompt || "{}");
-          const promptKey = Object.keys(promptObj)[0] || "prompt";
-          const promptTemplate = promptObj[promptKey] || "";
-          const injectedPrompt = injectVariables(
-            promptTemplate,
-            variableValues
+          const result = await generateResultForCombo(
+            config,
+            combo,
+            variableLengths
           );
-          const body = buildTestBody(config, injectedPrompt);
-          const headers = JSON.parse(config.headers || "{}");
-          const schema = config.schema ? JSON.parse(config.schema) : undefined;
-
-          const res = await fetch("/api/test-api", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              route: config.route,
-              body,
-              method: config.method,
-              field: config.field,
-              schema,
-              headers,
-            }),
-          });
-          const data = (await res.json().catch(() => ({}))) as {
-            data?: unknown;
-            error?: string;
-          };
-
-          const result: GeneratedResult = !res.ok
-            ? {
-                combo,
-                inputs,
-                error: data.error || `Request failed (${res.status})`,
-              }
-            : { combo, inputs, output: data.data };
-
-          // Persist to backend if generatorId is provided
-          if (opts?.generatorId) {
-            try {
-              setPersistError("");
-              const persistRes = await fetch(
-                `/api/generator/${opts.generatorId}/entry`,
-                {
-                  method: "POST",
-                  headers: { "Content-Type": "application/json" },
-                  body: JSON.stringify({
-                    inputs: result.inputs,
-                    output:
-                      typeof result.output !== "undefined"
-                        ? result.output
-                        : { error: result.error },
-                    combo: result.combo,
-                    error: result.error,
-                  }),
-                }
-              );
-              const persistData = (await persistRes
-                .json()
-                .catch(() => ({}))) as
-                | { id?: number; success?: boolean; error?: string }
-                | any;
-              if (!persistRes.ok || !persistData?.id) {
-                const msg =
-                  persistData?.error ||
-                  `Failed to persist entry (${persistRes.status})`;
-                setPersistError(msg);
-                opts?.onPersistError?.(msg);
-              } else {
-                setPersistedCount((c) => {
-                  const next = c + 1;
-                  opts?.onEntryPersisted?.({
-                    entryId: Number(persistData.id),
-                    index: next - 1,
-                    combo: result.combo,
-                  });
-                  return next;
-                });
-              }
-            } catch (e: unknown) {
-              const msg =
-                e instanceof Error ? e.message : "Failed to persist entry";
-              setPersistError(msg);
-              opts?.onPersistError?.(msg);
-            }
-          }
+          await persistGeneratedResult(result);
         } catch (err: unknown) {
           const result: GeneratedResult = {
             combo,
             inputs: {},
             error: err instanceof Error ? err.message : "Failed to generate",
           };
-          if (opts?.generatorId) {
-            try {
-              setPersistError("");
-              const persistRes = await fetch(
-                `/api/generator/${opts.generatorId}/entry`,
-                {
-                  method: "POST",
-                  headers: { "Content-Type": "application/json" },
-                  body: JSON.stringify({
-                    inputs: result.inputs,
-                    output: { error: result.error },
-                    combo: result.combo,
-                    error: result.error,
-                  }),
-                }
-              );
-              const persistData = (await persistRes
-                .json()
-                .catch(() => ({}))) as
-                | { id?: number; success?: boolean; error?: string }
-                | any;
-              if (!persistRes.ok || !persistData?.id) {
-                const msg =
-                  persistData?.error ||
-                  `Failed to persist entry (${persistRes.status})`;
-                setPersistError(msg);
-                opts?.onPersistError?.(msg);
-              } else {
-                setPersistedCount((c) => {
-                  const next = c + 1;
-                  opts?.onEntryPersisted?.({
-                    entryId: Number(persistData.id),
-                    index: next - 1,
-                    combo: result.combo,
-                  });
-                  return next;
-                });
-              }
-            } catch (e: unknown) {
-              const msg =
-                e instanceof Error ? e.message : "Failed to persist entry";
-              setPersistError(msg);
-              opts?.onPersistError?.(msg);
-            }
-          }
+          await persistGeneratedResult(result);
         }
 
         combo += safeGap;
@@ -256,7 +153,6 @@ export function useGeneratorRunner(
       cancelledRef.current = true;
     };
     // intentionally limited deps to control re-entry
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [runStatus, config, maxCombinations, gap]);
 
   // Allow caller to hydrate persistedCount after mount
@@ -264,7 +160,6 @@ export function useGeneratorRunner(
     if (typeof opts?.initialPersistedCount === "number") {
       setPersistedCount(opts.initialPersistedCount);
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [opts?.initialPersistedCount]);
 
   function start() {
@@ -295,37 +190,9 @@ export function useGeneratorRunner(
     setTestResult(null);
     setTestError("");
     try {
-      const { variableValues } = await buildVariableValuesForCombination(
-        config,
-        variableLengths,
-        1
-      );
-      const promptObj = JSON.parse(config.prompt || "{}");
-      const promptKey = Object.keys(promptObj)[0] || "prompt";
-      const promptTemplate = promptObj[promptKey] || "";
-      const injectedPrompt = injectVariables(promptTemplate, variableValues);
-      const body = buildTestBody(config, injectedPrompt);
-      const headers = JSON.parse(config.headers || "{}");
-      const schema = config.schema ? JSON.parse(config.schema) : undefined;
-
-      const res = await fetch("/api/test-api", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          route: config.route,
-          body,
-          method: config.method,
-          field: config.field,
-          schema,
-          headers,
-        }),
-      });
-      const data = (await res.json().catch(() => ({}))) as {
-        data?: unknown;
-        error?: string;
-      };
-      if (res.ok) setTestResult(data.data);
-      else setTestError(data.error || "Validation failed");
+      const result = await generateResultForCombo(config, 1, variableLengths);
+      if (result.output !== undefined) setTestResult(result.output);
+      else setTestError(result.error || "Validation failed");
     } catch (err: unknown) {
       setTestError(err instanceof Error ? err.message : "Failed to test API");
     }

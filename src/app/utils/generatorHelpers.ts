@@ -171,6 +171,91 @@ export function buildTestBody(config: any, injectedPrompt: string) {
   return obj;
 }
 
+export async function makeTestApiCall(
+  config: any,
+  injectedPrompt: string
+): Promise<{ data?: unknown; error?: string }> {
+  const body = buildTestBody(config, injectedPrompt);
+  const headers = JSON.parse(config.headers || "{}");
+  const schema = config.schema ? JSON.parse(config.schema) : undefined;
+
+  const res = await fetch("/api/test-api", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      route: config.route,
+      body,
+      method: config.method,
+      field: config.field,
+      schema,
+      headers,
+    }),
+  });
+  const data = (await res.json().catch(() => ({}))) as {
+    data?: unknown;
+    error?: string;
+  };
+  return data;
+}
+
+export async function persistResult(
+  generatorId: number,
+  result: {
+    inputs: Record<string, string>;
+    output?: unknown;
+    combo: number;
+    error?: string;
+  }
+): Promise<{ id: number }> {
+  const persistRes = await fetch(`/api/generator/${generatorId}/entry`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      inputs: result.inputs,
+      output:
+        typeof result.output !== "undefined"
+          ? result.output
+          : { error: result.error },
+      combo: result.combo,
+      error: result.error,
+    }),
+  });
+  const persistData = (await persistRes.json().catch(() => ({}))) as
+    | { id?: number; success?: boolean; error?: string }
+    | any;
+  if (!persistRes.ok || !persistData?.id) {
+    throw new Error(
+      persistData?.error || `Failed to persist entry (${persistRes.status})`
+    );
+  }
+  return { id: Number(persistData.id) };
+}
+
+export async function generateResultForCombo(
+  config: any,
+  combo: number,
+  variableLengths: Record<string, number>
+): Promise<{
+  combo: number;
+  inputs: Record<string, string>;
+  output?: unknown;
+  error?: string;
+}> {
+  const { variableValues, inputs } = await buildVariableValuesForCombination(
+    config,
+    variableLengths,
+    combo
+  );
+  const promptObj = JSON.parse(config.prompt || "{}");
+  const promptKey = Object.keys(promptObj)[0] || "prompt";
+  const promptTemplate = promptObj[promptKey] || "";
+  const injectedPrompt = injectVariables(promptTemplate, variableValues);
+  const data = await makeTestApiCall(config, injectedPrompt);
+  return !data.error
+    ? { combo, inputs, output: data.data }
+    : { combo, inputs, error: data.error };
+}
+
 // Helper to get variable lengths
 export async function getVariableLengths(
   config: any
