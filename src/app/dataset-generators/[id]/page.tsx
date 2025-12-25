@@ -47,6 +47,11 @@ export default function GeneratorConfigPage() {
   const [maxCombinations, setMaxCombinations] = useState(0);
   const [gap, setGap] = useState(1);
 
+  const STEP_PRESETS = [1, 2, 5, 10, 25, 50, 100, 250, 500, 1000] as const;
+  const [stepPreset, setStepPreset] = useState<number>(10);
+  const [useCustomStep, setUseCustomStep] = useState(false);
+  const [customStep, setCustomStep] = useState<number>(10);
+
   const {
     generator,
     setGenerator,
@@ -87,6 +92,13 @@ export default function GeneratorConfigPage() {
       ? Math.floor((maxCombinations - 1) / gap) + 1
       : 0;
   }, [gap, maxCombinations]);
+
+  const effectiveStep = useMemo(() => {
+    const max = Math.max(1, maxCombinations);
+    const raw = useCustomStep ? customStep : stepPreset;
+    const step = Number.isFinite(raw) ? Math.trunc(raw) : 1;
+    return Math.max(1, Math.min(step, max));
+  }, [customStep, maxCombinations, stepPreset, useCustomStep]);
 
   const runner = useGeneratorRunner(config, variableLengths, gap, {
     generatorId: finiteGeneratorId,
@@ -145,11 +157,91 @@ export default function GeneratorConfigPage() {
             type="range"
             min={1}
             max={Math.max(1, maxCombinations)}
+            step={effectiveStep}
             value={gap}
             onChange={(e) => setGap(Number(e.target.value))}
             disabled={generator.status === "started"}
             style={{ width: "100%", marginTop: 6 }}
           />
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: 12,
+              marginTop: 8,
+            }}
+          >
+            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+              <label
+                htmlFor="gap-step-select"
+                style={{ fontSize: 12, color: "#374151" }}
+              >
+                Step:
+              </label>
+              <select
+                id="gap-step-select"
+                value={useCustomStep ? "custom" : String(stepPreset)}
+                onChange={(e) => {
+                  if (e.target.value === "custom") {
+                    setUseCustomStep(true);
+                    return;
+                  }
+                  setUseCustomStep(false);
+                  setStepPreset(Number(e.target.value));
+                }}
+                disabled={generator.status === "started"}
+                style={{
+                  padding: "6px 8px",
+                  borderRadius: 6,
+                  border: "1px solid #d1d5db",
+                  background: "white",
+                }}
+              >
+                {STEP_PRESETS.map((n) => (
+                  <option key={n} value={String(n)}>
+                    {n}
+                  </option>
+                ))}
+                <option value="custom">Custom…</option>
+              </select>
+            </div>
+
+            {useCustomStep ? (
+              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                <label
+                  htmlFor="gap-step-custom"
+                  style={{ fontSize: 12, color: "#374151" }}
+                >
+                  Custom:
+                </label>
+                <input
+                  id="gap-step-custom"
+                  type="number"
+                  min={1}
+                  max={Math.max(1, maxCombinations)}
+                  step={1}
+                  value={customStep}
+                  onChange={(e) => {
+                    const v = Number(e.target.value);
+                    if (!Number.isFinite(v)) return;
+                    const max = Math.max(1, maxCombinations);
+                    const clamped = Math.max(1, Math.min(Math.trunc(v), max));
+                    setCustomStep(clamped);
+                  }}
+                  disabled={generator.status === "started"}
+                  style={{
+                    width: 120,
+                    padding: "6px 8px",
+                    borderRadius: 6,
+                    border: "1px solid #d1d5db",
+                  }}
+                />
+              </div>
+            ) : null}
+          </div>
+          <div style={{ marginTop: 6, color: "#6b7280", fontSize: 12 }}>
+            Step controls slider precision; type exact gap if needed.
+          </div>
           <div style={{ marginTop: 8 }}>
             <b>Selected combinations:</b> {selectedNumCombinations}{" "}
             <span style={{ color: "#888" }}>(max: {maxCombinations})</span>
